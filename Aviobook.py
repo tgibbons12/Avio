@@ -2140,6 +2140,8 @@ window.addEventListener('load', function() {
 
     # ── RIGHT icons — vertically centered across both rows ────────────────────
     html += "<div class='top-bar-icons'>"
+    html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"/\"' title='Back to Launcher' "
+             "style='font-size:15px;'>&#8962;</button>")   # ⌂ home
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='openSign()' title='Sign OFP'>"
              "&#9998;</button>")    # ✎ pencil
     html += ("<button class='top-bar-icon-btn' title='Notifications'>"
@@ -4981,7 +4983,7 @@ function resetTzOffset() {
 
     # Build sign overlay HTML with f-string (safe because all JS braces are doubled)
     _so_html  = "<div id='sign-overlay' style='display:none;position:fixed;top:0;left:0;"
-    _so_html += "right:0;bottom:0;z-index:900;"
+    _so_html += "right:0;bottom:0;z-index:1300;"
     _so_html += "background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);'>"
 
     # CSS for realistic sign page
@@ -5032,7 +5034,7 @@ function resetTzOffset() {
         "transition:border-color 0.15s;}"
         ".sig-canvas-wrap:hover{border-color:rgba(74,168,218,0.4);}"
         ".sig-canvas-wrap.has-sig{border-color:rgba(74,168,218,0.5);}"
-        ".sig-canvas-wrap canvas{display:block;cursor:crosshair;width:100%;height:90px;}"
+        ".sig-canvas-wrap canvas{display:block;cursor:crosshair;width:100%;height:90px;pointer-events:auto;touch-action:none;}"
         ".sig-placeholder{position:absolute;top:50%;left:50%;"
         "transform:translate(-50%,-50%);"
         "color:rgba(74,130,168,0.35);font-size:12px;font-style:italic;"
@@ -5073,7 +5075,7 @@ function resetTzOffset() {
     # Header + tabs — fixed bar, sits above scroll content
     _so_html += ("<div id='sign-tabbar' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px));left:0;right:0;"
         "background:linear-gradient(90deg,#0e3a52 0%,#1a4a61 100%);"
-        "border-bottom:1px solid #2a6a8a;z-index:10;"
+        "border-bottom:1px solid #2a6a8a;z-index:10;pointer-events:auto;touch-action:manipulation;"
         "display:flex;align-items:center;padding:0 16px;'>"
         "<div class='stab active' id='stab-ofp' onclick='signTab(\"ofp\")'>&#9998; Accept OFP Release</div>"
         "<div class='stab' id='stab-ffd' onclick='signTab(\"ffd\")'>&#10003; Fitness for Duty</div>"
@@ -5083,7 +5085,7 @@ function resetTzOffset() {
         "</div>")
 
     # Scroll container — separate from the tab bar, no -webkit-overflow-scrolling
-    _so_html += "<div id='sign-scroll' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px) + 44px);left:0;right:0;bottom:0;overflow-y:auto;'>"
+    _so_html += "<div id='sign-scroll' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px) + 44px);left:0;right:0;bottom:0;overflow-y:auto;pointer-events:auto;'>"
     _so_html += "<div class='overlay-inner'>"
 
     # ── OFP panel ────────────────────────────────────────────────────────────
@@ -5113,7 +5115,7 @@ function resetTzOffset() {
         "<div><div class='sig-label'>Captain Name</div>"
         f"<input id='ofp-name' class='sig-input' type='text' autocomplete='name' "
         f"autocapitalize='characters' spellcheck='false' "
-        f"placeholder='{_sign_cpt or 'LAST FIRST M'}' value='{_sign_cpt}'></div>"
+        f"placeholder='{_sign_cpt or 'LAST FIRST M'}' value=''></div>"
         "<div><div class='sig-label'>EMP #</div>"
         "<input id='ofp-cert' class='sig-input' type='text' inputmode='text' "
         "autocomplete='off' spellcheck='false' maxlength='12' "
@@ -5157,7 +5159,7 @@ function resetTzOffset() {
         "<div><div class='sig-label'>Captain Name</div>"
         f"<input id='ffd-name' class='sig-input' type='text' autocomplete='name' "
         f"autocapitalize='characters' spellcheck='false' "
-        f"placeholder='{_sign_cpt or 'LAST FIRST M'}' value='{_sign_cpt}'></div>"
+        f"placeholder='{_sign_cpt or 'LAST FIRST M'}' value=''></div>"
         "<div><div class='sig-label'>EMP #</div>"
         "<input id='ffd-cert' class='sig-input' type='text' inputmode='text' "
         "autocomplete='off' spellcheck='false' maxlength='12' "
