@@ -1,5 +1,6 @@
 import ssl
 import os
+import html as _html_escape
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
@@ -7,7 +8,7 @@ import pytz
 
 def fetch_xml_from_api(username):
     url = f"https://www.simbrief.com/api/xml.fetcher.php?username={username}"
-    context = ssl._create_unverified_context()
+    context = ssl.create_default_context()
     with urllib.request.urlopen(url, context=context) as response:
         return response.read()
 
@@ -40,7 +41,7 @@ def sec_to_hhmm(sec):
         h = sec_int // 3600
         m = (sec_int % 3600) // 60
         return f"{h:02d}{m:02d}"
-    except:
+    except Exception:
         return "0000"
 
 
@@ -189,7 +190,7 @@ def parse_simbrief_xml(xml_data):
         for fix in root.findall('navlog/fix'):
             ident = fix.findtext('ident', '')
 
-            if 'TOC' in ident:
+            if ident == 'TOC' or ident.startswith('TOC/'):
                 toc_reached = True
                 cum_time_sec  = int(fix.findtext('time_total',    '0') or 0)
                 cum_fuel_used = int(fix.findtext('fuel_totalused', '0') or 0)
@@ -214,7 +215,7 @@ def parse_simbrief_xml(xml_data):
             if not toc_reached:
                 continue
 
-            is_tod = 'TOD' in ident
+            is_tod = ident == 'TOD' or ident.startswith('TOD/')
 
             cum_time_sec  = int(fix.findtext('time_total',    '0') or 0)
             cum_fuel_used = int(fix.findtext('fuel_totalused', '0') or 0)
@@ -329,7 +330,7 @@ def parse_simbrief_xml(xml_data):
         hours = block_time_secs // 3600
         minutes = (block_time_secs % 3600) // 60
         duration_str = f"{hours}h{minutes:02d}min"
-    except:
+    except Exception:
         duration_str = "N/A"
 
     data.update({
@@ -376,7 +377,7 @@ def parse_simbrief_xml(xml_data):
             'route_distance': get('general/route_distance'),
             'dep_rwy': get('origin/plan_rwy'),
             'arr_rwy': get('destination/plan_rwy'),
-            'navlog': root.findtext('.//ATC/ROUTE',''),
+            'navlog': root.findtext('.//atc/route',''),
             # ATC flight plan fields
             'atc_id':        get('atc/callsign') or get('general/icao_airline') + get('general/flight_number'),
             'flight_rules':  get('atc/flight_rules', 'I'),
@@ -499,7 +500,7 @@ def _parse_notam_iso_date(date_str):
     try:
         ts = int(date_str)
         if ts > 0:
-            return datetime.utcfromtimestamp(ts)
+            return datetime.fromtimestamp(ts, tz=timezone.utc).replace(tzinfo=None)
     except Exception:
         pass
     return None
@@ -509,7 +510,7 @@ def _notam_is_expired(exp_dt):
     """Return True if expiry datetime has passed."""
     if exp_dt is None:
         return False
-    return exp_dt < datetime.utcnow()
+    return exp_dt < datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 _NOTAM_QCODE_CATEGORY = {
@@ -1023,7 +1024,7 @@ def _build_notams_html(root):
 
             # Render in navlog FIR order, then any remainder not seen in navlog
             fir_order = [k for k in _navlog_fir_order if k in by_fir]
-            fir_order += [k for k in by_fir if k not in _seen_firs]
+            fir_order += [k for k in by_fir if k not in fir_order]
 
             if fir_order:
                 out += "<div class='notam-airport-header'>\n"
@@ -1101,10 +1102,11 @@ def _build_launcher_html(archive_folder):
     for e in entries:
         label   = f"{e['flight']}  {e['orig']} → {e['dest']}" if e['flight'] else f"{e['orig']} → {e['dest']}"
         sub     = f"{e['date']}  {e['time']} UTC" if e['date'] else e['fname']
+        safe_fname = _html_escape.escape(e['fname'])
         rows += (
-            f"<a href='{e['fname']}' class='fl-row'>"
-            f"<div class='fl-route'>{label}</div>"
-            f"<div class='fl-meta'>{sub}</div>"
+            f"<a href='{safe_fname}' class='fl-row'>"
+            f"<div class='fl-route'>{_html_escape.escape(label)}</div>"
+            f"<div class='fl-meta'>{_html_escape.escape(sub)}</div>"
             f"<div class='fl-chev'>&#8250;</div>"
             f"</a>\n"
         )
@@ -1160,7 +1162,8 @@ def main():
     import os, json as _json
     from datetime import datetime, timezone
 
-    username = "tgibbons"  # Hardcoded username
+    import sys as _sys
+    username = os.environ.get("SIMBRIEF_USERNAME") or (len(_sys.argv) > 1 and _sys.argv[1]) or "tgibbons"
     xml_data = fetch_xml_from_api(username)
     data     = parse_simbrief_xml(xml_data)
     html     = generate_aviobook_html(data)
@@ -1214,7 +1217,10 @@ def main():
 
 
 # ── Default release folder (override via env or server config) ────────────────
-DEFAULT_RELEASE_FOLDER = "/Users/tobygibbons/Dropbox/Apps/ForeFlight/RELEASES"
+DEFAULT_RELEASE_FOLDER = os.environ.get(
+    "AVIOBOOK_RELEASE_FOLDER",
+    os.path.join(os.path.expanduser("~"), "Dropbox", "Apps", "ForeFlight", "RELEASES")
+)
 
 def scan_release_folder(orig_icao, dest_icao, flight_number, folder=None):
     """
@@ -1300,7 +1306,8 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
     def fuel_row(label, lbs, seconds):
         if not lbs or int(lbs) == 0:
             return ""
-        hhmm = f"{int(seconds)//3600:02}{(int(seconds)%3600)//60:02}" if seconds else "----"
+        sec_int = int(seconds) if seconds is not None and str(seconds) != '' else 0
+        hhmm = f"{sec_int//3600:02}{(sec_int%3600)//60:02}" if sec_int else "----"
         return f"<div class='data-row'><span class='label'>{label}:</span> {lbs} lbs / {hhmm}</div>"
 
     def format_navlog_time(seconds):
@@ -2347,11 +2354,11 @@ window.addEventListener('load', function() {
     html += "  <div class='section-body' id='sec-dispatch-body'>"
     html += f"  <div class='data-row'><span class='data-label'>NAME</span><span class='data-value'>{data['ofp']['name']}</span></div>"
     html += f"  <div class='data-row'><span class='data-label'>OFP RLS</span><span class='data-value'>{data['ofp']['time']}</span></div>"
-    disp_phone = data['ofp'].get('telephone') or 'DESK042 469-603-0130'
-    html += f"  <div class='data-row'><span class='data-label'>TELEPHONE</span><span class='data-value'>{disp_phone}</span></div>"
+    disp_phone = data['ofp'].get('telephone') or os.environ.get('AVIOBOOK_DISPATCH_PHONE', '')
+    html += f"  <div class='data-row'><span class='data-label'>TELEPHONE</span><span class='data-value'>{_html_escape.escape(disp_phone)}</span></div>"
     if g.get('dx_rmk'):
         html += f"  <div class='data-row'><span class='data-label'>REMARKS</span></div>"
-        html += f"  <div class='route-box'>{g['dx_rmk']}</div>"
+        html += f"  <div class='route-box'>{_html_escape.escape(g['dx_rmk'])}</div>"
     html += "  </div></div>"
 
     # ── ROUTE SECTION ────────────────────────────────────────────────────────
@@ -2391,7 +2398,7 @@ window.addEventListener('load', function() {
             try:
                 if int(float(value)) == 0:
                     return
-            except: pass
+            except Exception: pass
             html += f"<div class='fw-item'><div class='fw-label'>{label}</div><div class='fw-value'>{value}<span class='fw-unit'>{unit}</span></div></div>"
 
     add_fw('MAX PLND', f.get('plan_ramp'))
@@ -2454,7 +2461,7 @@ window.addEventListener('load', function() {
             try:
                 alt_cruise = int(alt.get('cruise_altitude', 0))
                 alt_fl = f"FL{alt_cruise//100}" if alt_cruise > 18000 else f"{alt_cruise}ft"
-            except: alt_fl = "---"
+            except Exception: alt_fl = "---"
             html += f"  <div class='alt-block'>"
             name_str = f" — {alt['icao']}" + (f" / {alt['iata']}" if alt['iata'] else '') + (f"  {alt['name']}" if alt['name'] else '')
             html += f"    <div class='alt-title'>{label}{name_str}</div>"
@@ -3453,11 +3460,11 @@ function finalSubmit() {{
         dist_d      = fv(fd.get('dist',''))
         if dist_d != '-':
             try: dist_d = str(round(float(dist_d)))
-            except: pass
+            except Exception: pass
         dtg_d       = fv(fd.get('dist_to_go',''))
         if dtg_d != '-':
             try: dtg_d = str(round(float(dtg_d)))
-            except: pass
+            except Exception: pass
         # TAS / GS from ind_true field (IAS/TAS format)
         it = fd.get('ind_true','') or ind_true or ''
         tas_d, gs_d = '-', '-'
@@ -4084,7 +4091,7 @@ function resetTzOffset() {
     # Format elevations as (NNNN')
     def _elev(e):
         try: return f"({int(float(e or 0))}')"
-        except: return ''
+        except Exception: return ''
 
     # STE/ETE for preflight ref: HH:MM/HH:MM
     _ste = _hhmm(g.get('ste','')) or _hhmm(t.get('sched_time_enroute',''))
@@ -4838,7 +4845,7 @@ function resetTzOffset() {
                  "<div style='color:#ffc060;font-size:11px;font-weight:700;letter-spacing:1px;"
                  "margin-bottom:8px;'>&#9888; MEL / CDL</div>"
                  f"<div style='color:#e8f6ff;font-size:12px;font-family:monospace;"
-                 f"white-space:pre-wrap;line-height:1.6;'>{g['mel_cdl']}</div>"
+                 f"white-space:pre-wrap;line-height:1.6;'>{_html_escape.escape(g['mel_cdl'])}</div>"
                  "</div>")
     # DX Remarks
     if g.get('dx_rmk'):
@@ -4847,7 +4854,7 @@ function resetTzOffset() {
                  "<div style='color:#5ab8e0;font-size:11px;font-weight:700;letter-spacing:1px;"
                  "margin-bottom:8px;'>&#9998; DISPATCHER REMARKS</div>"
                  f"<div style='color:#e8f6ff;font-size:12px;font-family:monospace;"
-                 f"white-space:pre-wrap;line-height:1.6;'>{g['dx_rmk']}</div>"
+                 f"white-space:pre-wrap;line-height:1.6;'>{_html_escape.escape(g['dx_rmk'])}</div>"
                  "</div>")
     # General Remarks
     if g.get('remarks'):
@@ -4856,7 +4863,7 @@ function resetTzOffset() {
                  "<div style='color:#5ab8e0;font-size:11px;font-weight:700;letter-spacing:1px;"
                  "margin-bottom:8px;'>&#128221; GENERAL REMARKS</div>"
                  f"<div style='color:#e8f6ff;font-size:12px;font-family:monospace;"
-                 f"white-space:pre-wrap;line-height:1.6;'>{g['remarks']}</div>"
+                 f"white-space:pre-wrap;line-height:1.6;'>{_html_escape.escape(g['remarks'])}</div>"
                  "</div>")
     # Cruise profile / step climb
     html += ("<div style='margin:0 16px 16px;background:linear-gradient(135deg,#1a4a61,#21546d);"
@@ -4891,11 +4898,13 @@ function resetTzOffset() {
 
     # Header row with COPY ROUTE button
     _atc_route_text = r.get('route_ifps','') or r.get('route','') or ''
+    import json as _json_js
+    _atc_route_js = _json_js.dumps(_atc_route_text)  # fully safe: handles quotes, backslashes, etc.
     html += ("<div style='display:flex;align-items:center;justify-content:space-between;"
              "padding:16px 16px 12px;'>"
              "<span style='font-size:22px;font-weight:300;color:#ffffff;'>ATC flight plan</span>"
-             "<button onclick=\"navigator.clipboard&&navigator.clipboard.writeText('"
-             + _atc_route_text.replace("'","\\'") + "').then(function(){"
+             "<button onclick=\"navigator.clipboard&&navigator.clipboard.writeText("
+             + _atc_route_js + ").then(function(){"
              "var b=document.getElementById('atc-copy-btn');"
              "b.innerHTML='&#10003; COPIED';b.style.background='#1a8a4a';"
              "setTimeout(function(){b.innerHTML='&#128272; COPY ROUTE';"
@@ -4917,7 +4926,6 @@ function resetTzOffset() {
     # Row helper
     def _atc_row(cols):
         """cols = list of (label, value) tuples"""
-        w = f"{100//len(cols)}%"
         s = f"<div style='display:grid;grid-template-columns:{'1fr '*len(cols)};gap:12px;margin-bottom:14px;'>"
         for lbl, val in cols:
             s += (f"<div><div style='{_lbl}'>{lbl}</div>"
@@ -4927,8 +4935,9 @@ function resetTzOffset() {
 
     _atc_id   = r.get('atc_id','') or (g.get('icao_airline','') + g.get('flight_number',''))
     _dep_z2   = data['times']['sched_off'][0] if data['times']['sched_off'] else ''
-    _eet_h    = int(r.get('eet_atc','0000')[:2] or 0)
-    _eet_m    = int(r.get('eet_atc','0000')[2:4] or 0)
+    _eet_raw  = r.get('eet_atc', '0000').zfill(4)  # pad to at least 4 chars
+    _eet_h    = int(_eet_raw[:2] or 0)
+    _eet_m    = int(_eet_raw[2:4] or 0)
     _eet_disp = f"{_eet_h}h {_eet_m:02d}m" if (_eet_h or _eet_m) else '—'
     _alts     = data.get('alternate', [])
     _alt1     = _alts[0]['icao'] if len(_alts) > 0 else '—'
@@ -4968,7 +4977,7 @@ function resetTzOffset() {
     _sign_flt   = (g.get('icao_airline','') + g.get('flight_number','')).strip()
     _sign_orig  = a['origin']['icao']
     _sign_dest  = a['destination']['icao']
-    _disp_phone = data['ofp'].get('telephone') or 'DESK042 469-603-0130'
+    _disp_phone = data['ofp'].get('telephone') or os.environ.get('AVIOBOOK_DISPATCH_PHONE', '')
 
     # Build sign overlay HTML with f-string (safe because all JS braces are doubled)
     _so_html  = "<div id='sign-overlay' style='display:none;position:fixed;top:0;left:0;"
