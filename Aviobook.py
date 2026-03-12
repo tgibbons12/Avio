@@ -3484,6 +3484,8 @@ function finalSubmit() {{
         fd = fix_data or {}
 
         mora_raw = fd.get('mora', '') or ''
+        ma_val = str(mora_raw).strip() if mora_raw and str(mora_raw).strip() not in ('', '---', '0') else '-'
+        is_special = row_class in ('nl-toc', 'nl-tod', 'nl-dest')
 
         def fv(v):
             """Return value or '-' if empty/---"""
