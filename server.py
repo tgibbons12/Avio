@@ -131,7 +131,7 @@ def _build_launcher():
         "    <label class='login-label' for='sb-username'>SimBrief Username</label>\n"
         "    <input class='login-input' id='sb-username' type='text'\n"
         "           autocomplete='off' autocorrect='off' autocapitalize='off'\n"
-        "           spellcheck='false' placeholder='e.g. tgibbons'>\n"
+        "           spellcheck='false' placeholder='Enter your username'>\n"
         "    <div class='remember-row' onclick='toggleRemember()'>\n"
         "      <div class='remember-toggle' id='remember-toggle'></div>\n"
         "      <span class='remember-label'>Remember me on this device</span>\n"
