@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Aviobook — Flights</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{background:#0d3550;overscroll-behavior-y:none;}
+body{background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);
+  min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  overscroll-behavior-y:none;color:#eaf6ff;}
+.header{background:rgba(0,0,0,0.3);padding:18px 20px 14px;
+  border-bottom:1px solid rgba(90,174,239,0.18);display:flex;align-items:center;gap:12px;}
+.header-logo{font-size:20px;font-weight:700;color:#7ad8fd;letter-spacing:1px;}
+.header-sub{font-size:11px;color:#4a7a96;letter-spacing:.5px;margin-top:2px;}
+.gen-card{margin:16px;background:rgba(0,0,0,0.25);border:1px solid rgba(90,174,239,0.15);
+  border-radius:12px;padding:16px 18px;}
+.gen-title{font-size:11px;color:#4a7a96;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.gen-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+.gen-field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px;}
+.gen-label{font-size:11px;color:#4a7a96;letter-spacing:.5px;text-transform:uppercase;}
+.gen-input{background:rgba(255,255,255,0.07);border:1px solid rgba(90,174,239,0.25);
+  border-radius:8px;color:#eaf6ff;font-size:15px;padding:9px 12px;
+  font-family:inherit;outline:none;-webkit-appearance:none;}
+.gen-input:focus{border-color:rgba(90,174,239,0.55);background:rgba(255,255,255,0.1);}
+.gen-input::placeholder{color:#4a7a96;}
+.gen-btn{background:linear-gradient(90deg,#1a6a9a,#1e7db8);border:none;
+  border-radius:8px;color:#fff;font-size:13px;font-weight:700;letter-spacing:.5px;
+  padding:10px 20px;cursor:pointer;text-transform:uppercase;white-space:nowrap;
+  min-height:40px;font-family:inherit;transition:opacity .15s;}
+.gen-btn:active{opacity:.75;}
+.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+.status{margin:0 16px 4px;font-size:13px;min-height:20px;padding:4px 0;}
+.status.loading{color:#7ad8fd;} .status.error{color:#ff7b7b;} .status.ok{color:#5de6a0;}
+.current-btn{display:flex;align-items:center;gap:10px;margin:8px 16px 4px;
+  background:rgba(30,125,184,0.18);border:1px solid rgba(90,174,239,0.25);
+  border-radius:10px;padding:14px 18px;cursor:pointer;text-decoration:none;transition:background .15s;}
+.current-btn:active{background:rgba(90,174,239,0.12);}
+.current-dot{width:8px;height:8px;background:#5de6a0;border-radius:50%;box-shadow:0 0 6px #5de6a0;flex-shrink:0;}
+.current-label{font-size:15px;font-weight:600;color:#eaf6ff;}
+.current-sub{font-size:11px;color:#4a7a96;margin-top:1px;}
+.current-chev{margin-left:auto;font-size:22px;color:#2a6a8b;}
+.section-title{padding:16px 20px 8px;font-size:11px;color:#4a7a96;letter-spacing:1px;text-transform:uppercase;}
+.fl-row{display:flex;align-items:center;padding:14px 20px;
+  border-bottom:1px solid rgba(90,174,239,0.1);text-decoration:none;cursor:pointer;gap:10px;transition:background .15s;}
+.fl-row:active{background:rgba(90,174,239,0.08);}
+.fl-route{flex:1;font-size:15px;font-weight:600;color:#e8f6ff;letter-spacing:.2px;}
+.fl-meta{font-size:11px;color:#4a7a96;white-space:nowrap;}
+.fl-chev{font-size:22px;color:#2a6a8b;line-height:1;}
+.empty{padding:20px;text-align:center;font-size:13px;color:#4a7a96;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-logo">AVIOBOOK</div>
+    <div class="header-sub">FLIGHT ARCHIVE</div>
+  </div>
+</div>
+
+<div class="gen-card">
+  <div class="gen-title">Fetch New Flight Plan</div>
+  <div class="gen-row">
+    <div class="gen-field">
+      <label class="gen-label" for="inp-user">SimBrief Username</label>
+      <input class="gen-input" id="inp-user" type="text" placeholder="e.g. tgibbons" autocorrect="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="gen-field">
+      <label class="gen-label" for="inp-pilot">Pilot Name</label>
+      <input class="gen-input" id="inp-pilot" type="text" placeholder="e.g. T GIBBONS" autocorrect="off" autocapitalize="characters">
+    </div>
+    <button class="gen-btn" id="gen-btn" onclick="generate()">&#9654;&nbsp; Fetch OFP</button>
+  </div>
+</div>
+
+<div class="status" id="status"></div>
+
+<a class="current-btn" id="current-btn" href="/ofp" target="_blank" style="display:none;">
+  <div class="current-dot"></div>
+  <div>
+    <div class="current-label" id="current-label">Current Flight</div>
+    <div class="current-sub">Tap to open</div>
+  </div>
+  <div class="current-chev">›</div>
+</a>
+
+<div class="section-title">Past Flights</div>
+<div id="archive-list"></div>
+
+<script>
+const $user  = document.getElementById('inp-user');
+const $pilot = document.getElementById('inp-pilot');
+const $btn   = document.getElementById('gen-btn');
+const $stat  = document.getElementById('status');
+
+const saved = JSON.parse(localStorage.getItem('aviobook_creds') || '{}');
+if (saved.username) $user.value  = saved.username;
+if (saved.pilot)    $pilot.value = saved.pilot;
+
+function saveCreds() {
+  localStorage.setItem('aviobook_creds', JSON.stringify({ username: $user.value.trim(), pilot: $pilot.value.trim() }));
+}
+$user.addEventListener('change', saveCreds);
+$pilot.addEventListener('change', saveCreds);
+
+function renderArchive(list) {
+  const el = document.getElementById('archive-list');
+  if (!list || list.length === 0) { el.innerHTML = '<div class="empty">No past flights yet</div>'; return; }
+  el.innerHTML = list.map(e =>
+    `<a class="fl-row" href="/ofp/${e.id}" target="_blank">
+       <div class="fl-route">${e.flight}&nbsp;&nbsp;${e.orig} &rarr; ${e.dest}</div>
+       <div class="fl-meta">${e.date}&nbsp;&nbsp;${e.time} UTC</div>
+       <div class="fl-chev">&rsaquo;</div>
+     </a>`
+  ).join('');
+}
+
+async function loadArchive() {
+  try { const r = await fetch('/archive'); if (r.ok) renderArchive(await r.json()); } catch(e) {}
+}
+
+function showCurrent(label) {
+  const btn = document.getElementById('current-btn');
+  const lbl = document.getElementById('current-label');
+  btn.style.display = 'flex';
+  if (label) lbl.textContent = label;
+}
+
+fetch('/ofp', {method:'HEAD'}).then(r => { if (r.ok) showCurrent('Current Flight'); }).catch(()=>{});
+
+async function generate() {
+  const username   = $user.value.trim();
+  const pilot_name = $pilot.value.trim();
+  if (!username) { setStatus('Enter your SimBrief username', 'error'); return; }
+  saveCreds();
+  $btn.disabled = true;
+  setStatus('Fetching flight plan from SimBrief…', 'loading');
+  try {
+    const r = await fetch('/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ username, pilot_name }),
+    });
+    const text = await r.text();
+    if (!r.ok) { setStatus('Error: ' + text, 'error'); return; }
+    setStatus('Flight plan ready ✓', 'ok');
+    showCurrent('Current Flight — tap to open');
+    await loadArchive();
+    window.open('/ofp', '_blank');
+  } catch(e) {
+    setStatus('Network error: ' + e.message, 'error');
+  } finally {
+    $btn.disabled = false;
+  }
+}
+
+function setStatus(msg, type) {
+  $stat.textContent = msg;
+  $stat.className = 'status ' + (type || '');
+}
+
+if (window.__ARCHIVE__ && window.__ARCHIVE__.length > 0) renderArchive(window.__ARCHIVE__);
+loadArchive();
+</script>
+</body>
+</html>
