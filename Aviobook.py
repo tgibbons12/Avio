@@ -3168,10 +3168,10 @@ function setTrend(row,sel,plnd,act,isTime) {{
     if(!act||!plnd||plnd==='&mdash;'||plnd==='') {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
     var diff=isTime?hhmm2mins(act)-hhmm2mins(plnd):(parseInt(act)||0)-(parseInt(plnd)||0);
     if(diff===0) {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
-    // Time: earlier (diff<0) = good = green &#8595; | later (diff>0) = bad = red &#8593;
-    // Fuel: higher (diff>0) = good = green &#8593; | lower (diff<0) = bad = red &#8595;
+    // Time: earlier (diff<0) = good = green ↓ | later (diff>0) = bad = red ↑
+    // Fuel: higher (diff>0) = good = green ↑ | lower (diff<0) = bad = red ↓
     var better = isTime ? diff<0 : diff>0;
-    var arrow = diff>0 ? ' &#8593;' : ' &#8595;';
+    var arrow = diff>0 ? ' ↑' : ' ↓';
     if(isTime) {{ var a=Math.abs(diff); c.textContent=(diff>0?'+':'-')+String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0')+arrow; }}
     else {{ c.textContent=(diff>0?'+':'')+Math.round(diff)+arrow; }}
     c.className=c.className.replace(/ ?pos| ?neg/g,'')+(better?' pos':' neg');
