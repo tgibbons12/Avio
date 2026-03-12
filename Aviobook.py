@@ -3778,9 +3778,6 @@ function openSettings() {
     _syncSettingsUI();
 }
 
-// Stub — overridden by full implementation in the sign-overlay script block below
-function openSign() { /* replaced below */ }
-function closeSign() { /* replaced below */ }
 
 function closeSettings() {
     document.getElementById('settings-overlay').style.display = 'none';
@@ -4989,20 +4986,6 @@ function resetTzOffset() {
     _so_html += "overflow-y:auto;-webkit-overflow-scrolling:touch;"
     _so_html += "padding-top:calc(env(safe-area-inset-top,0px) + var(--topbar-h,88px));"
     _so_html += "background:linear-gradient(160deg,#0d3347 0%,#0e4060 50%,#0c3a55 100%);'>"
-    _so_html += ("<div id='sign-tabbar' style='background:linear-gradient(90deg,#0e3a52 0%,#1a4a61 100%);"
-        "border-bottom:1px solid #2a6a8a;"
-        "padding:0 16px;position:sticky;top:0;z-index:10;"
-        "display:flex;align-items:center;touch-action:manipulation;'>"
-        "<div class='stab active' id='stab-ofp' onclick='signTab(\"ofp\")'>&#9998; Accept OFP Release</div>"
-        "<div class='stab' id='stab-ffd' onclick='signTab(\"ffd\")'>&#10003; Fitness for Duty</div>"
-        "<button onclick='closeSign()' style='margin-left:auto;background:rgba(255,255,255,0.06);"
-        "border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#8ab8d0;"
-        "font-size:14px;line-height:1;padding:5px 12px;cursor:pointer;'>&#x2715;</button>"
-        "</div>")
-
-    _so_html += "<div class='overlay-inner'>"
-
-    # CSS for realistic sign page
     _so_html += ("<style>"
         "#sign-overlay .stab{display:inline-block;padding:10px 18px 9px;"
         "font-size:11px;font-weight:700;letter-spacing:0.8px;white-space:nowrap;"
@@ -5085,6 +5068,20 @@ function resetTzOffset() {
         "letter-spacing:0.3px;margin-top:4px;}"
         ".ofp-rule{border:none;border-top:1px solid rgba(74,168,218,0.1);margin:10px 0;}"
         "</style>")
+    _so_html += ("<div id='sign-tabbar' style='background:linear-gradient(90deg,#0e3a52 0%,#1a4a61 100%);"
+        "border-bottom:1px solid #2a6a8a;"
+        "padding:0 16px;position:sticky;top:0;z-index:10;"
+        "display:flex;align-items:center;touch-action:manipulation;'>"
+        "<div class='stab active' id='stab-ofp' onclick='signTab(\"ofp\")'>&#9998; Accept OFP Release</div>"
+        "<div class='stab' id='stab-ffd' onclick='signTab(\"ffd\")'>&#10003; Fitness for Duty</div>"
+        "<button onclick='closeSign()' style='margin-left:auto;background:rgba(255,255,255,0.06);"
+        "border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#8ab8d0;"
+        "font-size:14px;line-height:1;padding:5px 12px;cursor:pointer;'>&#x2715;</button>"
+        "</div>")
+
+    _so_html += "<div class='overlay-inner'>"
+
+    # CSS for realistic sign page
 
     # Header + tabs (sticky) — no duplicate flight info, real top-bar is always visible above
     # ── OFP panel ────────────────────────────────────────────────────────────
