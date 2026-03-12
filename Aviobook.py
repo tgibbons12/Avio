@@ -4976,6 +4976,7 @@ function resetTzOffset() {
     html += "</div>"  # tab-atc
 
 
+    # ── SIGN OVERLAY ─────────────────────────────────────────────────────────
     _sign_cpt   = _captain_name
     _sign_dx    = (c.get('dx')  or '').strip().upper()
     _sign_rls   = data['ofp'].get('time', '1')
@@ -4986,28 +4987,27 @@ function resetTzOffset() {
 
     # Build sign overlay HTML with f-string (safe because all JS braces are doubled)
     _so_html  = "<div id='sign-overlay' style='display:none;position:fixed;top:0;left:0;"
-    _so_html += "right:0;bottom:0;z-index:1300;padding-top:env(safe-area-inset-top,0px);"
+    _so_html += "right:0;bottom:0;z-index:1300;"
+    _so_html += "padding-top:env(safe-area-inset-top,0px);"
     _so_html += "overflow-y:auto;-webkit-overflow-scrolling:touch;"
     _so_html += "background:linear-gradient(160deg,#0d3347 0%,#0e4060 50%,#0c3a55 100%);'>"
-    _so_html += "<div class='overlay-inner' style='padding-top:var(--topbar-h,88px);'>"
+    _so_html += "<div class='overlay-inner'>"
 
     # CSS for realistic sign page
     _so_html += ("<style>"
         "#sign-overlay .stab{display:inline-block;padding:10px 18px 9px;"
         "font-size:11px;font-weight:700;letter-spacing:0.8px;white-space:nowrap;"
         "cursor:pointer;border-bottom:2px solid transparent;color:#4a7a96;"
-        "text-transform:uppercase;transition:color 0.15s;"
-        "touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;}"
+        "text-transform:uppercase;transition:color 0.15s;}"
         "#sign-overlay .stab.active{color:#e8f6ff;border-bottom-color:#4da8da;}"
         "#sign-overlay .stab:hover:not(.active){color:#8ab8d0;}"
         "#sign-overlay .spanel{display:none;}"
         "#sign-overlay .spanel.active{display:block;}"
         ".sig-input{background:rgba(13,40,62,0.8);"
         "border:1px solid rgba(74,168,218,0.25);border-radius:5px;"
-        "color:#e8f6ff;font-size:16px;font-family:'Courier New',Courier,monospace;"
+        "color:#e8f6ff;font-size:13px;font-family:'Courier New',Courier,monospace;"
         "padding:10px 12px;width:100%;box-sizing:border-box;outline:none;"
-        "transition:border-color 0.15s,background 0.15s;letter-spacing:0.5px;"
-        "-webkit-user-select:text;user-select:text;touch-action:manipulation;}"
+        "transition:border-color 0.15s,background 0.15s;letter-spacing:0.5px;}"
         ".sig-input:focus{border-color:rgba(74,168,218,0.6);"
         "background:rgba(13,40,62,1);box-shadow:0 0 0 3px rgba(74,168,218,0.08);}"
         ".sig-input::placeholder{color:rgba(74,130,168,0.5);}"
@@ -5039,7 +5039,7 @@ function resetTzOffset() {
         "transition:border-color 0.15s;}"
         ".sig-canvas-wrap:hover{border-color:rgba(74,168,218,0.4);}"
         ".sig-canvas-wrap.has-sig{border-color:rgba(74,168,218,0.5);}"
-        ".sig-canvas-wrap canvas{display:block;cursor:crosshair;width:100%;height:90px;pointer-events:auto;touch-action:none;}"
+        ".sig-canvas-wrap canvas{display:block;cursor:crosshair;width:100%;height:90px;}"
         ".sig-placeholder{position:absolute;top:50%;left:50%;"
         "transform:translate(-50%,-50%);"
         "color:rgba(74,130,168,0.35);font-size:12px;font-style:italic;"
@@ -5077,18 +5077,17 @@ function resetTzOffset() {
         ".ofp-rule{border:none;border-top:1px solid rgba(74,168,218,0.1);margin:10px 0;}"
         "</style>")
 
-    # Header + tabs — fixed bar, sits above scroll content
-    # Tab bar — sticky inside the scrolling overlay (matches old working architecture)
+    # Header + tabs (sticky) — no duplicate flight info, real top-bar is always visible above
     _so_html += ("<div id='sign-tabbar' style='background:linear-gradient(90deg,#0e3a52 0%,#1a4a61 100%);"
-        "border-bottom:1px solid #2a6a8a;position:sticky;top:0;z-index:10;"
-        "display:flex;align-items:center;padding:0 16px;'>"
+        "border-bottom:1px solid #2a6a8a;"
+        "padding:0 16px;position:sticky;top:0;z-index:10;"
+        "display:flex;align-items:center;touch-action:manipulation;'>"
         "<div class='stab active' id='stab-ofp' onclick='signTab(\"ofp\")'>&#9998; Accept OFP Release</div>"
         "<div class='stab' id='stab-ffd' onclick='signTab(\"ffd\")'>&#10003; Fitness for Duty</div>"
         "<button onclick='closeSign()' style='margin-left:auto;background:rgba(255,255,255,0.06);"
         "border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#8ab8d0;"
-        "font-size:14px;line-height:1;padding:5px 12px;cursor:pointer;touch-action:manipulation;'>&#x2715;</button>"
+        "font-size:14px;line-height:1;padding:5px 12px;cursor:pointer;'>&#x2715;</button>"
         "</div>")
-
 
     # ── OFP panel ────────────────────────────────────────────────────────────
     _so_html += "<div class='spanel active' id='spanel-ofp' style='padding:18px 16px 32px 16px;'>"
@@ -5184,7 +5183,7 @@ function resetTzOffset() {
         "</div>")
 
     _so_html += "</div>"  # overlay-inner
-    _so_html += "</div>"  # sign-overlay
+    _so_html += "</div>"  # close sign-overlay div
 
     # JS — includes signature canvas drawing logic
     _so_html += """<script>
@@ -5196,19 +5195,15 @@ var _sigHasData={ofp:false,ffd:false};
 function _initCanvas(id) {
   var canvas = document.getElementById(id+'-sig-canvas');
   if (!canvas) return;
-
   var wrap = document.getElementById(id+'-canvas-wrap');
-  var ph   = document.getElementById(id+'-sig-placeholder');
-  var st   = document.getElementById(id+'-sig-status');
+  var ph = document.getElementById(id+'-sig-placeholder');
+  var st = document.getElementById(id+'-sig-status');
 
-  // Size canvas to actual pixel dimensions — must be visible (non-zero width)
+  // Size canvas to actual pixel width
   function resizeCanvas() {
     var dpr = window.devicePixelRatio || 1;
-    var w = canvas.offsetWidth;
-    var h = canvas.offsetHeight;
-    if (!w || !h) return;  // still hidden, skip
-    canvas.width  = w * dpr;
-    canvas.height = h * dpr;
+    canvas.width  = canvas.offsetWidth  * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
     var ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
     ctx.strokeStyle = '#7ac4e8';
@@ -5218,8 +5213,6 @@ function _initCanvas(id) {
   }
   resizeCanvas();
 
-  // Attach listeners only once
-
   function getPos(e) {
     var r = canvas.getBoundingClientRect();
     var src = e.touches ? e.touches[0] : e;
@@ -5227,15 +5220,13 @@ function _initCanvas(id) {
   }
 
   var ctx = canvas.getContext('2d');
-  var drawing = false;
+  var drawing = false, lastPos = null;
 
   function startDraw(e) {
-    // Resize now in case canvas was 0×0 when first initialised (panel was hidden)
-    if (!canvas.width || !canvas.height) resizeCanvas();
     drawing = true;
-    var pos = getPos(e);
+    lastPos = getPos(e);
     ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
+    ctx.moveTo(lastPos.x, lastPos.y);
     e.preventDefault();
   }
   function moveDraw(e) {
@@ -5243,6 +5234,7 @@ function _initCanvas(id) {
     var pos = getPos(e);
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
+    lastPos = pos;
     if (!_sigHasData[id]) {
       _sigHasData[id] = true;
       if (ph) ph.style.opacity = '0';
@@ -5279,24 +5271,14 @@ function clearSig(id) {
 // ── Helpers ────────────────────────────────────────────────────────────────
 function _genSubId(){var c='0123456789ABCDEF',s='';[8,4,4,4,12].forEach(function(n,i){if(i>0)s+='-';for(var j=0;j<n;j++)s+=c[Math.floor(Math.random()*16)];});return s;}
 function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
-function openSign(){
-  document.getElementById('sign-overlay').style.display='block';
-  document.body.style.overflow='hidden';
-  restoreSignedState();
-  setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);
-}
-function closeSign(){
-  document.getElementById('sign-overlay').style.display='none';
-  document.body.style.overflow='';
-}
+function openSign(){document.getElementById('sign-overlay').style.display='block';document.body.style.overflow='hidden';restoreSignedState();setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);}
 window.openSign = openSign;
 window.closeSign = closeSign;
+function closeSign(){document.getElementById('sign-overlay').style.display='none';document.body.style.overflow='';}
 function signTab(id){
   ['ofp','ffd'].forEach(function(t){
-    var stab   = document.getElementById('stab-'+t);
-    var spanel = document.getElementById('spanel-'+t);
-    if (stab)   stab.classList.toggle('active',   t===id);
-    if (spanel) spanel.classList.toggle('active',  t===id);
+    document.getElementById('stab-'+t).classList.toggle('active',t===id);
+    document.getElementById('spanel-'+t).classList.toggle('active',t===id);
   });
   // Re-init canvas in case it was hidden on first load
   setTimeout(function(){_initCanvas(id);},30);
@@ -5338,6 +5320,7 @@ function _markSigned(id,ts,subId){
   // Replace form with confirmation block
   var area=document.getElementById(id+'-signed-area');
   var btn=document.getElementById(id+'-sign-btn');
+  var form=btn?btn.parentElement:null;
   if(btn)btn.style.display='none';
   if(area){
     area.style.display='block';
@@ -5355,12 +5338,7 @@ function _markSigned(id,ts,subId){
       +"text-transform:uppercase;font-family:inherit;'>&#8635; Unsign</button>"
       +"</div>";
   }
-  // Unlock navlog when OFP is signed
   if(id==='ofp' && window._unlockNavlog) _unlockNavlog();
-}
-
-function _setBannerHeight(){
-  document.documentElement.style.setProperty('--banner-h', '0px');
 }
 
 function _checkBothSigned(){
@@ -5372,9 +5350,14 @@ function _checkBothSigned(){
   if(fEl)fEl.textContent=ffd.ts;
   if(oEl)oEl.textContent=ofp.ts;
   if(sEl)sEl.textContent=ofp.subId;
-  setTimeout(_setBannerHeight, 50);
+  var sb=document.getElementById('sign-btn');
+  if(sb){sb.style.color='#4cdf8a';sb.textContent='\\u2713 SIGNED';}
   var remaining=(Math.min(ffd.unix,ofp.unix)+30*60*1000)-Date.now();
   if(remaining>0)setTimeout(hideBanners,remaining);else hideBanners();
+}
+
+function _setBannerHeight(){
+  document.documentElement.style.setProperty('--banner-h','0px');
 }
 
 function hideBanners(){
@@ -5385,24 +5368,20 @@ function hideBanners(){
 }
 
 function unsign(id){
-  // Clear from memory and storage
   delete _signed[id];
   try{localStorage.removeItem(FLIGHT_KEY+'_sign_'+id);}catch(e){}
-  // Re-show sign button and hide confirmation area
   var area=document.getElementById(id+'-signed-area');
   var btn=document.getElementById(id+'-sign-btn');
   if(area){area.style.display='none';area.innerHTML='';}
   if(btn)btn.style.display='';
-  // Re-lock navlog if OFP unsigned
   if(id==='ofp'){
     var bar=document.getElementById('nl-unsigned-bar');
     var banner=document.getElementById('nl-rls-banner');
-    if(bar) bar.style.display='flex';
-    if(banner) banner.style.display='none';
+    if(bar)bar.style.display='flex';
+    if(banner)banner.style.display='none';
   }
-  // Hide banners if either is now unsigned
   var banners=document.getElementById('sign-banners');
-  if(banners) banners.style.display='none';
+  if(banners)banners.style.display='none';
   document.documentElement.style.setProperty('--banner-h','0px');
 }
 
