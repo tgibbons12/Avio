@@ -3479,12 +3479,11 @@ function finalSubmit() {{
         except Exception:
             alt_fl = alt or ''
         wind_raw = wind if wind and wind.strip('/') and wind.strip() not in ('/', '/', '---/---') else ''
-        mora_raw = fd.get('mora', '') or ''
-        ma_val = str(mora_raw).strip() if mora_raw and str(mora_raw).strip() not in ('', '---', '0') else '-'
-        is_special = row_class in ('nl-toc', 'nl-tod', 'nl-dest')
 
         # Pull all real values from fix_data
         fd = fix_data or {}
+
+        mora_raw = fd.get('mora', '') or ''
 
         def fv(v):
             """Return value or '-' if empty/---"""
