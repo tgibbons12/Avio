@@ -1365,6 +1365,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             position: sticky;
             top: 0;
             z-index: 700;
+            padding-top: env(safe-area-inset-top, 0px);
         }
         .top-bar-inner {
             max-width: 900px;
@@ -2038,7 +2039,7 @@ window.addEventListener('load', function() {
 """
     html = ("<!DOCTYPE html><html><head>"
         "<meta charset='UTF-8'>"
-        "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1.0, viewport-fit=cover'>"
         "<title>Aviobook</title>"
         "<meta name='apple-mobile-web-app-capable' content='yes'>"
         "<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent'>"
@@ -3920,9 +3921,11 @@ function resetTzOffset() {
             document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
         }
     }
+    window.addEventListener('DOMContentLoaded', setTopbarHeight);
     window.addEventListener('load', setTopbarHeight);
     window.addEventListener('resize', setTopbarHeight);
     setTimeout(setTopbarHeight, 100);
+    setTimeout(setTopbarHeight, 500);  // extra pass for PWA standalone on iOS
 })();
 </script>
 """
@@ -4983,7 +4986,7 @@ function resetTzOffset() {
 
     # Build sign overlay HTML with f-string (safe because all JS braces are doubled)
     _so_html  = "<div id='sign-overlay' style='display:none;position:fixed;top:0;left:0;"
-    _so_html += "right:0;bottom:0;z-index:1300;"
+    _so_html += "right:0;bottom:0;z-index:1300;padding-top:env(safe-area-inset-top,0px);"
     _so_html += "background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);'>"
 
     # CSS for realistic sign page
@@ -5085,7 +5088,7 @@ function resetTzOffset() {
         "</div>")
 
     # Scroll container — separate from the tab bar, no -webkit-overflow-scrolling
-    _so_html += "<div id='sign-scroll' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px) + 44px);left:0;right:0;bottom:0;overflow-y:auto;pointer-events:auto;'>"
+    _so_html += "<div id='sign-scroll' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px) + 44px);left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;overscroll-behavior:contain;'>"
     _so_html += "<div class='overlay-inner'>"
 
     # ── OFP panel ────────────────────────────────────────────────────────────
@@ -5281,23 +5284,32 @@ function clearSig(id) {
 function _genSubId(){var c='0123456789ABCDEF',s='';[8,4,4,4,12].forEach(function(n,i){if(i>0)s+='-';for(var j=0;j<n;j++)s+=c[Math.floor(Math.random()*16)];});return s;}
 function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
 function openSign(){
-  document.getElementById('sign-overlay').style.display='block';
-  // Position scroll area just below the tab bar
-  setTimeout(function(){
-    var tabbar = document.getElementById('sign-tabbar');
-    var scroll = document.getElementById('sign-scroll');
-    if (tabbar && scroll) {
-      var tbBottom = tabbar.getBoundingClientRect().bottom;
-      scroll.style.top = tbBottom + 'px';
-    }
-    _initCanvas('ofp');
-    _initCanvas('ffd');
-    _resizeCanvas('ofp');
-    _resizeCanvas('ffd');
-    restoreSignedState();
-  }, 30);
+  var overlay = document.getElementById('sign-overlay');
+  overlay.style.display = 'block';
+  // Use rAF + timeout so iPad PWA has fully painted before we measure/init
+  requestAnimationFrame(function(){
+    setTimeout(function(){
+      // Reset any stale _sigBound so canvas reinits cleanly on each open
+      ['ofp','ffd'].forEach(function(id){
+        var c = document.getElementById(id+'-sig-canvas');
+        if (c) c._sigBound = false;
+      });
+      _initCanvas('ofp');
+      _initCanvas('ffd');
+      _resizeCanvas('ofp');
+      _resizeCanvas('ffd');
+      restoreSignedState();
+    }, 150);
+  });
 }
-function closeSign(){document.getElementById('sign-overlay').style.display='none';}
+function closeSign(){
+  document.getElementById('sign-overlay').style.display='none';
+  // Reset sigBound so next open gets a fresh canvas context
+  ['ofp','ffd'].forEach(function(id){
+    var c = document.getElementById(id+'-sig-canvas');
+    if (c) c._sigBound = false;
+  });
+}
 window.openSign = openSign;
 window.closeSign = closeSign;
 function signTab(id){
@@ -5307,10 +5319,12 @@ function signTab(id){
     if (stab)   stab.classList.toggle('active',   t===id);
     if (spanel) spanel.classList.toggle('active',  t===id);
   });
-  setTimeout(function(){
-    _initCanvas(id);
-    _resizeCanvas(id);
-  }, 50);
+  requestAnimationFrame(function(){
+    setTimeout(function(){
+      _initCanvas(id);
+      _resizeCanvas(id);
+    }, 100);
+  });
 }
 
 function _resizeCanvas(id) {
@@ -5460,7 +5474,7 @@ window.addEventListener('DOMContentLoaded',restoreSignedState);
     # ── SETTINGS OVERLAY ─────────────────────────────────────────────────────
     html += """
 <div id='settings-overlay' style='display:none;position:fixed;top:0;left:0;right:0;bottom:0;
-  z-index:900;background:rgba(8,28,42,0.97);overflow-y:auto;padding-top:calc(var(--topbar-h,88px) + var(--banner-h,0px));'>
+  z-index:1250;background:rgba(8,28,42,0.97);overflow-y:auto;padding-top:calc(var(--topbar-h,88px) + var(--banner-h,0px));'>
   <div style='max-width:480px;margin:0 auto;padding:24px 16px 48px;'>
     <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;'>
       <span style='color:#e8f6ff;font-size:17px;font-weight:700;letter-spacing:0.5px;'>&#9881; SETTINGS</span>
