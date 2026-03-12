@@ -209,6 +209,7 @@ def parse_simbrief_xml(xml_data):
                     'is_toc': True, 'is_tod': False,
                     'fir': fix.findtext('fir', ''),
                     'fir_name': fix.findtext('fir_name', ''),
+                    'mora': fix.findtext('grid_mora', '') or fix.findtext('mora', ''),
                 })
                 continue
 
@@ -262,6 +263,7 @@ def parse_simbrief_xml(xml_data):
                 'is_tod':       is_tod,
                 'fir':          fix.findtext('fir', ''),
                 'fir_name':     fix.findtext('fir_name', ''),
+                'mora':         fix.findtext('grid_mora', '') or fix.findtext('mora', ''),
             })
 
             if is_tod:
@@ -2828,7 +2830,7 @@ var PLAN_LDG_FUEL= {int(float(data['fuel'].get('plan_landing') or 0))};
 var _wpIdent = null;
 
 function hhmm2mins(s) {{
-    s = String(s||'0000').replace(':','').replace('&mdash;&mdash;','0000').padStart(4,'0');
+    s = String(s||'0000').replace(':','').replace('\u2014\u2014','0000').padStart(4,'0');
     return parseInt(s.slice(0,2))*60+parseInt(s.slice(2));
 }}
 function mins2hhmm(m) {{
@@ -2960,7 +2962,7 @@ function openWp(ident) {{
     if(!card) return;
     _wpIdent=ident;
     document.getElementById('wp-fix-name').textContent=ident;
-    var pAlt=card.dataset.plndAlt||'&mdash;', pEt=card.dataset.plndEt||'&mdash;', pFuel=card.dataset.plndFuel||'&mdash;';
+    var pAlt=card.dataset.plndAlt||'\u2014', pEt=card.dataset.plndEt||'\u2014', pFuel=card.dataset.plndFuel||'\u2014';
     document.getElementById('wp-p-alt').textContent=pAlt;
     document.getElementById('wp-p-et').textContent=typeof pEt==='string'&&pEt.length===4?pEt.slice(0,2)+':'+pEt.slice(2):pEt;
     document.getElementById('wp-p-fuel').textContent=pFuel;
@@ -2968,9 +2970,9 @@ function openWp(ident) {{
     var existAlt  = card.dataset.actAlt||'';
     var existEt   = card.dataset.actEt||'';
     var existFuel = card.dataset.actFuel||'';
-    document.getElementById('wp-a-alt').value  = existAlt  ? existAlt  : (pAlt!=='&mdash;'?pAlt:'');
+    document.getElementById('wp-a-alt').value  = existAlt  ? existAlt  : (pAlt!=='\u2014'?pAlt:'');
     document.getElementById('wp-a-et').value   = existEt   ? existEt.slice(0,2)+':'+existEt.slice(2) : (pEt.length===4?pEt.slice(0,2)+':'+pEt.slice(2):'');
-    document.getElementById('wp-a-fuel').value = existFuel ? existFuel : (pFuel!=='&mdash;'?pFuel:'');
+    document.getElementById('wp-a-fuel').value = existFuel ? existFuel : (pFuel!=='\u2014'?pFuel:'');
     var cards=Array.from(document.querySelectorAll('.nl-card[data-ident]'));
     var idx=cards.indexOf(card);
     var nextEt=(idx>=0&&idx<cards.length-1)?(cards[idx+1].dataset.plndEt||''):'';
@@ -3165,7 +3167,7 @@ function nlFir(gid) {{
 
 function setTrend(row,sel,plnd,act,isTime) {{
     var c=row.querySelector(sel); if(!c) return;
-    if(!act||!plnd||plnd==='&mdash;'||plnd==='') {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
+    if(!act||!plnd||plnd==='\u2014'||plnd==='') {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
     var diff=isTime?hhmm2mins(act)-hhmm2mins(plnd):(parseInt(act)||0)-(parseInt(plnd)||0);
     if(diff===0) {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
     // Time: earlier (diff<0) = good = green ↓ | later (diff>0) = bad = red ↑
@@ -3449,7 +3451,8 @@ function finalSubmit() {{
         except Exception:
             alt_fl = alt or ''
         wind_raw = wind if wind and wind.strip('/') and wind.strip() not in ('/', '/', '---/---') else ''
-        ma_val = str(track_mag) if track_mag and str(track_mag) not in ('---','','0') else '-'
+        mora_raw = fd.get('mora', '') or ''
+        ma_val = str(mora_raw).strip() if mora_raw and str(mora_raw).strip() not in ('', '---', '0') else '-'
         is_special = row_class in ('nl-toc', 'nl-tod', 'nl-dest')
 
         # Pull all real values from fix_data
@@ -3519,7 +3522,8 @@ function finalSubmit() {{
             f"<div class='nl-dg-item'><div class='nl-dg-lbl'>GS</div><div class='nl-dg-val'>{gs_d}</div></div>"
             f"<div class='nl-dg-item'><div class='nl-dg-lbl'>MACH</div><div class='nl-dg-val'>{mach_d}</div></div>"
             f"<div class='nl-dg-item'><div class='nl-dg-lbl'>TRP</div><div class='nl-dg-val'>{trp_d}</div></div>"
-            f"<div class='nl-dg-item'><div class='nl-dg-lbl'>MA</div><div class='nl-dg-val'>{ma_d}</div></div>"
+            f"<div class='nl-dg-item'><div class='nl-dg-lbl'>MT</div><div class='nl-dg-val'>{fv(fd.get('track_mag',''))}</div></div>"
+            f"<div class='nl-dg-item'><div class='nl-dg-lbl'>MORA</div><div class='nl-dg-val'>{ma_val}</div></div>"
             f"<div class='nl-dg-item'><div class='nl-dg-lbl'>TEMP</div><div class='nl-dg-val'>{temp_d}</div></div>"
             f"<div class='nl-dg-item'><div class='nl-dg-lbl'>WIND</div><div class='nl-dg-val'>{wind_d}</div></div>"
             f"<div class='nl-dg-item'><div class='nl-dg-lbl'>SEGF</div><div class='nl-dg-val'>{segf_d}</div></div>"
@@ -3686,12 +3690,19 @@ function togglePin(nid, entryEl) {
         delete pinnedNotams[nid];
         entryEl.classList.remove('pinned');
         var btn = entryEl.querySelector('.notam-pin-btn');
-        if (btn) { btn.classList.remove('pinned-active'); btn.textContent = '&#9675;'; }
+        if (btn) { btn.classList.remove('pinned-active'); btn.textContent = '\u25CB'; }
     } else {
-        pinnedNotams[nid] = entryEl.outerHTML;
+        // Store plain text content only — never raw HTML — to prevent XSS via innerHTML round-trip
+        var metaEl = entryEl.querySelector('.notam-meta');
+        var bodyEl = entryEl.querySelector('.notam-body');
+        pinnedNotams[nid] = {
+            id:   nid,
+            meta: metaEl ? metaEl.textContent : '',
+            body: bodyEl ? bodyEl.textContent : ''
+        };
         entryEl.classList.add('pinned');
         var btn = entryEl.querySelector('.notam-pin-btn');
-        if (btn) { btn.classList.add('pinned-active'); btn.textContent = '&#9675;'; }
+        if (btn) { btn.classList.add('pinned-active'); btn.textContent = '\u25CB'; }
     }
     try { localStorage.setItem('av_pinned_notams', JSON.stringify(pinnedNotams)); } catch(e) {}
     renderPinnedBar();
@@ -3705,7 +3716,7 @@ function unpinFromBar(nid) {
     if (orig) {
         orig.classList.remove('pinned');
         var btn = orig.querySelector('.notam-pin-btn');
-        if (btn) { btn.classList.remove('pinned-active'); btn.textContent = '&#9675;'; }
+        if (btn) { btn.classList.remove('pinned-active'); btn.textContent = '\u25CB'; }
     }
     renderPinnedBar();
 }
@@ -3719,40 +3730,67 @@ function renderPinnedBar() {
     bar.style.display = '';
     list.innerHTML = '';
     keys.forEach(function(nid) {
+        var d = pinnedNotams[nid];
+        // Legacy guard: if stored value is a string (old outerHTML format), skip re-rendering it
+        if (typeof d === 'string') { return; }
+
+        // Build card entirely from safe text content — no innerHTML of untrusted data
         var wrap = document.createElement('div');
+        wrap.className = 'notam-entry pinned';
         wrap.style.padding = '4px 12px';
-        wrap.innerHTML = pinnedNotams[nid];
-        // Replace the pin button with a working unpin button
-        var pbtn = wrap.querySelector('.notam-pin-btn');
-        if (pbtn) {
-            pbtn.textContent = '&#9675;';
-            pbtn.title = 'Unpin NOTAM';
-            pbtn.classList.add('pinned-active');
-            pbtn.setAttribute('onclick', 'unpinFromBar("' + nid.replace(/"/g, '\\"') + '")');
-        } else {
-            // Insert an unpin button if none exists
-            var hdr = wrap.querySelector('.notam-entry-hdr');
-            if (hdr) {
-                var newBtn = document.createElement('button');
-                newBtn.className = 'notam-pin-btn pinned-active';
-                newBtn.textContent = '&#9675;';
-                newBtn.title = 'Unpin NOTAM';
-                newBtn.setAttribute('onclick', 'unpinFromBar("' + nid.replace(/"/g, '\\"') + '")');
-                hdr.appendChild(newBtn);
-            }
-        }
+
+        var hdr = document.createElement('div');
+        hdr.className = 'notam-entry-hdr';
+
+        var idSpan = document.createElement('span');
+        idSpan.className = 'notam-id';
+        idSpan.textContent = d.id || nid;
+
+        var metaSpan = document.createElement('span');
+        metaSpan.className = 'notam-meta';
+        metaSpan.textContent = d.meta || '';
+
+        var unpinBtn = document.createElement('button');
+        unpinBtn.className = 'notam-pin-btn pinned-active';
+        unpinBtn.title = 'Unpin NOTAM';
+        unpinBtn.textContent = '\u25CB';
+        (function(capturedNid) {
+            unpinBtn.addEventListener('click', function() { unpinFromBar(capturedNid); });
+        })(nid);
+
+        hdr.appendChild(idSpan);
+        hdr.appendChild(metaSpan);
+        hdr.appendChild(unpinBtn);
+
+        var body = document.createElement('div');
+        body.className = 'notam-body';
+        body.textContent = d.body || '';
+
+        wrap.appendChild(hdr);
+        wrap.appendChild(body);
         list.appendChild(wrap);
     });
 }
 
 // Restore pin state on load
 window.addEventListener('load', function() {
+    // Migrate any legacy string-format pins (old outerHTML) — drop them, they can't be safely re-used
+    var migrated = false;
+    Object.keys(pinnedNotams).forEach(function(nid) {
+        if (typeof pinnedNotams[nid] === 'string') {
+            delete pinnedNotams[nid];
+            migrated = true;
+        }
+    });
+    if (migrated) {
+        try { localStorage.setItem('av_pinned_notams', JSON.stringify(pinnedNotams)); } catch(e) {}
+    }
     document.querySelectorAll('.notam-entry[data-nid]').forEach(function(el) {
         var nid = el.dataset.nid;
         if (pinnedNotams[nid]) {
             el.classList.add('pinned');
             var btn = el.querySelector('.notam-pin-btn');
-            if (btn) { btn.classList.add('pinned-active'); btn.textContent = '&#9675;'; }
+            if (btn) { btn.classList.add('pinned-active'); btn.textContent = '\u25CB'; }
         }
     });
     renderPinnedBar();
@@ -3849,7 +3887,7 @@ function _genSubId(name,id){
   var p3=(raw.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0)%65536).toString(16).toUpperCase().padStart(4,'0');
   return p1+'-'+p2+'-'+p3;
 }
-function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' &mdash; '+hh+':'+mm+'Z';}
+function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' \u2014 '+hh+':'+mm+'Z';}
 function openSign(){document.getElementById('sign-overlay').style.display='block';document.body.style.overflow='hidden';restoreSignedState();setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);}
 window.openSign = openSign;
 window.closeSign = closeSign;
@@ -5601,7 +5639,7 @@ function saveJourneyLog() {
         });
         localStorage.setItem('av_journey_log', JSON.stringify(data));
         var btn = document.querySelector('#tab-journeylog button');
-        if (btn) { btn.textContent = '&#10003; Saved'; setTimeout(function(){ btn.innerHTML = '&#10003; Save Journey Log'; }, 2000); }
+        if (btn) { btn.textContent = '\u2713 Saved'; setTimeout(function(){ btn.innerHTML = '&#10003; Save Journey Log'; }, 2000); }
     } catch(e) {}
 }
 
