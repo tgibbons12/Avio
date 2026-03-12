@@ -7,10 +7,33 @@ from datetime import datetime, timezone, timedelta
 import pytz
 
 def fetch_xml_from_api(username):
-    url = f"https://www.simbrief.com/api/xml.fetcher.php?username={username}"
+    import urllib.parse
+    # SimBrief accepts ?username= (pilot ID alias) or ?userid= (numeric ID).
+    param = "userid" if str(username).strip().isdigit() else "username"
+    url = f"https://www.simbrief.com/api/xml.fetcher.php?{param}={urllib.parse.quote(str(username).strip())}"
     context = ssl.create_default_context()
-    with urllib.request.urlopen(url, context=context) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(url, context=context) as response:
+            data = response.read()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"SimBrief API returned HTTP {e.code}: {e.reason}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Could not reach SimBrief API: {e.reason}") from e
+
+    # SimBrief returns HTTP 200 even for errors — check the XML status field
+    try:
+        import xml.etree.ElementTree as _ET
+        root = _ET.fromstring(data)
+        status = root.findtext('fetch/status') or root.findtext('status') or ''
+        if status.lower() not in ('ok', 'success', ''):
+            msg = root.findtext('fetch/message') or root.findtext('message') or status
+            raise RuntimeError(f"SimBrief error: {msg}")
+    except RuntimeError:
+        raise
+    except Exception:
+        raise RuntimeError("SimBrief returned an invalid response (not XML). Check your username/ID.")
+
+    return data
 
 
 
@@ -1166,7 +1189,12 @@ def main():
 
     import sys as _sys
     username = os.environ.get("SIMBRIEF_USERNAME") or (len(_sys.argv) > 1 and _sys.argv[1]) or "tgibbons"
-    xml_data = fetch_xml_from_api(username)
+    try:
+        xml_data = fetch_xml_from_api(username)
+    except RuntimeError as e:
+        print(f"\nError: {e}", file=_sys.stderr)
+        print(f"Tip: Make sure '{username}' matches your SimBrief Pilot ID (alphanumeric alias) or numeric User ID.", file=_sys.stderr)
+        _sys.exit(1)
     data     = parse_simbrief_xml(xml_data)
     html     = generate_aviobook_html(data)
 
