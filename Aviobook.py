@@ -1338,7 +1338,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
     <style>
         * { box-sizing: border-box; }
         body {
-            font-family: -apple-system, 'SF Pro Display', 'Segoe UI', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Arial, sans-serif;
             background: linear-gradient(160deg, #13405a 0%, #1a4a61 50%, #163d55 100%);
             background-attachment: fixed;
             color: #eaf6ff;
@@ -2141,7 +2141,7 @@ window.addEventListener('load', function() {
 
     # ── RIGHT icons — vertically centered across both rows ────────────────────
     html += "<div class='top-bar-icons'>"
-    html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"/\"' title='Back to Launcher' "
+    html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"aviobook_launcher.html\"' title='Back to Launcher' "
              "style='font-size:15px;'>&#8962;</button>")   # ⌂ home
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='if(window.openSign)openSign()' title='Sign OFP'>"
              "&#9998;</button>")    # ✎ pencil
@@ -2292,7 +2292,7 @@ window.addEventListener('load', function() {
     svg += ("<rect x='435' y='26' width='130' height='22' rx='11' ry='11' "
             "fill='#000' stroke='#7ad8fd' stroke-width='1.5'/>"
             f"<text x='500' y='42' text-anchor='middle' "
-            f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='13' font-weight='700' fill='#7ad8fd' "
+            f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='13' font-weight='700' fill='#7ad8fd' "
             f"letter-spacing='0.5'>OFP RLS {ofp_rls}</text>")
     # Meta lines — 16px spacing, starting y=58
     meta_lines = [
@@ -2306,14 +2306,14 @@ window.addEventListener('load', function() {
         y = 60 + i * 16
         if len(parts) == 2:
             svg += (f"<text x='498' y='{y}' text-anchor='end' "
-                    f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='700' fill='#d8f0ff'>"
+                    f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='700' fill='#d8f0ff'>"
                     f"{parts[0]}</text>"
                     f"<text x='504' y='{y}' text-anchor='start' "
-                    f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='400' fill='#7ad8fd'>"
+                    f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='400' fill='#7ad8fd'>"
                     f"{parts[1]}</text>")
         else:
             svg += (f"<text x='500' y='{y}' text-anchor='middle' "
-                    f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='{weight}' fill='#d8f0ff'>"
+                    f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='{weight}' fill='#d8f0ff'>"
                     f"{text}</text>")
     # Dots on baseline y=80, label y=95, UTC y=112, local y=127, tz y=139
     _dot_id_map = {270: 'svg-lbl-etot', 730: 'svg-lbl-eldt'}
@@ -2323,16 +2323,16 @@ window.addEventListener('load', function() {
         svg += (
             f"<circle cx='{x}' cy='80' r='5.5' fill='#7ad8fd'/>"
             f"<text x='{x}' y='95' text-anchor='middle'{id_attr} "
-            f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='700' fill='#6ab4d4' "
+            f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='12' font-weight='700' fill='#6ab4d4' "
             f"letter-spacing='1'>{lbl}</text>"
             f"<text x='{x}' y='112' text-anchor='middle' "
-            f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='15' font-weight='400' fill='#eaf6ff'>"
+            f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='15' font-weight='400' fill='#eaf6ff'>"
             f"{val}</text>"
             f"<text x='{x}' y='127' text-anchor='middle' "
-            f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='13' font-weight='400' fill='#7ad8fd'>"
+            f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='13' font-weight='400' fill='#7ad8fd'>"
             f"{loc_val}</text>"
             f"<text x='{x}' y='139' text-anchor='middle' "
-            f"font-family=\"-apple-system,'SF Pro Display','Segoe UI',Arial,sans-serif\" font-size='10' font-weight='400' fill='#4e88aa'>"
+            f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='10' font-weight='400' fill='#4e88aa'>"
             f"{tz_lbl}</text>"
         )
     svg += "</svg>"
