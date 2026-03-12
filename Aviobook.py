@@ -2045,6 +2045,7 @@ window.addEventListener('load', function() {
         "<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent'>"
         "<meta name='apple-mobile-web-app-title' content='Aviobook'>"
         "<meta name='mobile-web-app-capable' content='yes'>"
+        "<link rel='manifest' href='/manifest.json'>"
         + css + collapse_js + "</head><body>")
     html += "<div class='container'>"
 
@@ -2141,7 +2142,7 @@ window.addEventListener('load', function() {
 
     # ── RIGHT icons — vertically centered across both rows ────────────────────
     html += "<div class='top-bar-icons'>"
-    html += ("<button class='top-bar-icon-btn' onclick='(function(){var l=window.location;if(l.protocol===\"file:\"){var p=l.pathname.split(\"/\");p[p.length-1]=\"aviobook_launcher.html\";window.location.href=l.protocol+\"//\"+p.join(\"/\");}else{window.location.href=\"aviobook_launcher.html\";}})()' title='Back to Launcher' "
+    html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"/\"' title='Back to Launcher' "
              "style='font-size:15px;'>&#8962;</button>")   # ⌂ home
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='if(window.openSign)openSign()' title='Sign OFP'>"
              "&#9998;</button>")    # ✎ pencil
@@ -2738,6 +2739,7 @@ window.addEventListener('load', function() {
 .nl-ma{{
     text-align:center;
     font-size:13px;color:#eaf6ff;font-weight:400;
+    font-variant-numeric:tabular-nums;
     padding:14px 4px;
 }}
 .nl-special .nl-ma{{color:transparent;}}
@@ -2746,14 +2748,16 @@ window.addEventListener('load', function() {
 .nl-c{{
     text-align:center;
     font-size:13px;color:#eaf6ff;
+    font-variant-numeric:tabular-nums;
     white-space:nowrap;overflow:hidden;
     padding:14px 2px;
 }}
-.nl-plnd{{color:#eaf6ff;font-weight:400;}}
-.nl-act{{color:#eaf6ff;font-weight:500;}}
+.nl-plnd{{color:#eaf6ff;font-weight:400;font-variant-numeric:tabular-nums;}}
+.nl-act{{color:#eaf6ff;font-weight:500;font-variant-numeric:tabular-nums;}}
 .nl-trend{{
     text-align:center;
     font-size:13px;font-weight:600;color:transparent;
+    font-variant-numeric:tabular-nums;
     white-space:nowrap;padding:14px 2px;
 }}
 .nl-trend.pos{{color:#4cdf8a;}}
@@ -3838,19 +3842,11 @@ function clearSig(id) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function _genSubId(name,id){
-  // Deterministic token: signer + flight + release type + date (UTC day)
-  // Same person signing same flight on same day always gets same token
-  var raw = (name||'').toUpperCase().replace(/\s+/g,'')
-            + '|' + FLIGHT_KEY
-            + '|' + id.toUpperCase()
-            + '|' + new Date().toISOString().slice(0,10);
-  // Simple but stable 32-bit hash (djb2 variant)
-  var h = 5381;
-  for(var i=0;i<raw.length;i++){ h = ((h<<5)+h) ^ raw.charCodeAt(i); h = h>>>0; }
-  // Format as XXXXXXXX-XXXX-XXXX where X is base36 uppercase, padded
-  var p1 = h.toString(16).toUpperCase().padStart(8,'0');
-  var p2 = (raw.length*31+7).toString(16).toUpperCase().padStart(4,'0');
-  var p3 = (raw.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0)%65536).toString(16).toUpperCase().padStart(4,'0');
+  var raw=(name||'').toUpperCase().replace(/\s+/g,'')+'\x7c'+FLIGHT_KEY+'\x7c'+id.toUpperCase()+'\x7c'+new Date().toISOString().slice(0,10);
+  var h=5381;for(var i=0;i<raw.length;i++){h=((h<<5)+h)^raw.charCodeAt(i);h=h>>>0;}
+  var p1=h.toString(16).toUpperCase().padStart(8,'0');
+  var p2=(raw.length*31+7).toString(16).toUpperCase().padStart(4,'0');
+  var p3=(raw.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0)%65536).toString(16).toUpperCase().padStart(4,'0');
   return p1+'-'+p2+'-'+p3;
 }
 function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
