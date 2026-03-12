@@ -56,9 +56,21 @@ def index():
 
 @app.route("/ofp")
 def serve_ofp():
-    """Serve the current (latest) OFP."""
+    """Serve the current (latest) OFP, or redirect to launcher if none in memory."""
     if not _store["current_ofp"]:
-        return "No flight plan generated yet — go back and generate one first.", 404
+        # PWA/fresh session — redirect gracefully instead of raw error
+        return Response(
+            "<html><head>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
+            "<meta http-equiv='refresh' content='0;url=/'>"
+            "<style>body{background:#0d1f30;color:#4da8da;font-family:sans-serif;"
+            "display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}</style>"
+            "</head><body>"
+            "<script>window.location.replace('/');</script>"
+            "<p>Redirecting\u2026</p>"
+            "</body></html>",
+            mimetype="text/html"
+        )
     return Response(_store["current_ofp"], mimetype="text/html")
 
 @app.route("/ofp/<int:flight_id>")
@@ -142,6 +154,10 @@ def archive():
 @app.route("/health")
 def health():
     return "ok", 200
+
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory(STATIC_DIR, "manifest.json")
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":

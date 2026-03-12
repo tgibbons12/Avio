@@ -2,15 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Aviobook — Flights</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aviobook">
+<meta name="theme-color" content="#0b1f30">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html{background:#0d3550;overscroll-behavior-y:none;}
 body{background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);
   min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
   overscroll-behavior-y:none;color:#eaf6ff;}
-.header{background:rgba(0,0,0,0.3);padding:18px 20px 14px;
+.header{background:rgba(0,0,0,0.3);padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 14px;
   border-bottom:1px solid rgba(90,174,239,0.18);display:flex;align-items:center;gap:12px;}
 .header-logo{font-size:20px;font-weight:700;color:#7ad8fd;letter-spacing:1px;}
 .header-sub{font-size:11px;color:#4a7a96;letter-spacing:.5px;margin-top:2px;}
@@ -64,11 +70,11 @@ body{background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);
   <div class="gen-row">
     <div class="gen-field">
       <label class="gen-label" for="inp-user">SimBrief Username</label>
-      <input class="gen-input" id="inp-user" type="text" placeholder="e.g. tgibbons" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <input class="gen-input" id="inp-user" type="text" placeholder="SimBrief username" autocorrect="off" autocapitalize="none" spellcheck="false">
     </div>
     <div class="gen-field">
       <label class="gen-label" for="inp-pilot">Pilot Name</label>
-      <input class="gen-input" id="inp-pilot" type="text" placeholder="e.g. T GIBBONS" autocorrect="off" autocapitalize="characters">
+      <input class="gen-input" id="inp-pilot" type="text" placeholder="Pilot name (optional)" autocorrect="off" autocapitalize="characters">
     </div>
     <button class="gen-btn" id="gen-btn" onclick="generate()">&#9654;&nbsp; Fetch OFP</button>
   </div>
@@ -76,7 +82,7 @@ body{background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);
 
 <div class="status" id="status"></div>
 
-<a class="current-btn" id="current-btn" href="/ofp" target="_blank" style="display:none;">
+<a class="current-btn" id="current-btn" href="/ofp" style="display:none;">
   <div class="current-dot"></div>
   <div>
     <div class="current-label" id="current-label">Current Flight</div>
@@ -108,7 +114,7 @@ function renderArchive(list) {
   const el = document.getElementById('archive-list');
   if (!list || list.length === 0) { el.innerHTML = '<div class="empty">No past flights yet</div>'; return; }
   el.innerHTML = list.map(e =>
-    `<a class="fl-row" href="/ofp/${e.id}" target="_blank">
+    `<a class="fl-row" href="/ofp/${e.id}">
        <div class="fl-route">${e.flight}&nbsp;&nbsp;${e.orig} &rarr; ${e.dest}</div>
        <div class="fl-meta">${e.date}&nbsp;&nbsp;${e.time} UTC</div>
        <div class="fl-chev">&rsaquo;</div>
@@ -147,7 +153,7 @@ async function generate() {
     setStatus('Flight plan ready ✓', 'ok');
     showCurrent('Current Flight — tap to open');
     await loadArchive();
-    window.open('/ofp', '_blank');
+    window.location.href = '/ofp';
   } catch(e) {
     setStatus('Network error: ' + e.message, 'error');
   } finally {

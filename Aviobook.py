@@ -4987,7 +4987,9 @@ function resetTzOffset() {
     # Build sign overlay HTML with f-string (safe because all JS braces are doubled)
     _so_html  = "<div id='sign-overlay' style='display:none;position:fixed;top:0;left:0;"
     _so_html += "right:0;bottom:0;z-index:1300;padding-top:env(safe-area-inset-top,0px);"
-    _so_html += "background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);'>"
+    _so_html += "overflow-y:auto;-webkit-overflow-scrolling:touch;"
+    _so_html += "background:linear-gradient(160deg,#0d3347 0%,#0e4060 50%,#0c3a55 100%);'>"
+    _so_html += "<div class='overlay-inner' style='padding-top:var(--topbar-h,88px);'>"
 
     # CSS for realistic sign page
     _so_html += ("<style>"
@@ -5076,9 +5078,9 @@ function resetTzOffset() {
         "</style>")
 
     # Header + tabs — fixed bar, sits above scroll content
-    _so_html += ("<div id='sign-tabbar' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px));left:0;right:0;"
-        "background:linear-gradient(90deg,#0e3a52 0%,#1a4a61 100%);"
-        "border-bottom:1px solid #2a6a8a;z-index:10;pointer-events:auto;touch-action:manipulation;"
+    # Tab bar — sticky inside the scrolling overlay (matches old working architecture)
+    _so_html += ("<div id='sign-tabbar' style='background:linear-gradient(90deg,#0e3a52 0%,#1a4a61 100%);"
+        "border-bottom:1px solid #2a6a8a;position:sticky;top:0;z-index:10;"
         "display:flex;align-items:center;padding:0 16px;'>"
         "<div class='stab active' id='stab-ofp' onclick='signTab(\"ofp\")'>&#9998; Accept OFP Release</div>"
         "<div class='stab' id='stab-ffd' onclick='signTab(\"ffd\")'>&#10003; Fitness for Duty</div>"
@@ -5087,9 +5089,6 @@ function resetTzOffset() {
         "font-size:14px;line-height:1;padding:5px 12px;cursor:pointer;touch-action:manipulation;'>&#x2715;</button>"
         "</div>")
 
-    # Scroll container — separate from the tab bar, no -webkit-overflow-scrolling
-    _so_html += "<div id='sign-scroll' style='position:absolute;top:calc(var(--topbar-h,88px) + var(--banner-h,0px) + 44px);left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;overscroll-behavior:contain;'>"
-    _so_html += "<div class='overlay-inner'>"
 
     # ── OFP panel ────────────────────────────────────────────────────────────
     _so_html += "<div class='spanel active' id='spanel-ofp' style='padding:18px 16px 32px 16px;'>"
@@ -5185,7 +5184,6 @@ function resetTzOffset() {
         "</div>")
 
     _so_html += "</div>"  # overlay-inner
-    _so_html += "</div>"  # sign-scroll
     _so_html += "</div>"  # sign-overlay
 
     # JS — includes signature canvas drawing logic
@@ -5221,8 +5219,6 @@ function _initCanvas(id) {
   resizeCanvas();
 
   // Attach listeners only once
-  if (canvas._sigBound) return;
-  canvas._sigBound = true;
 
   function getPos(e) {
     var r = canvas.getBoundingClientRect();
@@ -5284,31 +5280,14 @@ function clearSig(id) {
 function _genSubId(){var c='0123456789ABCDEF',s='';[8,4,4,4,12].forEach(function(n,i){if(i>0)s+='-';for(var j=0;j<n;j++)s+=c[Math.floor(Math.random()*16)];});return s;}
 function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
 function openSign(){
-  var overlay = document.getElementById('sign-overlay');
-  overlay.style.display = 'block';
-  // Use rAF + timeout so iPad PWA has fully painted before we measure/init
-  requestAnimationFrame(function(){
-    setTimeout(function(){
-      // Reset any stale _sigBound so canvas reinits cleanly on each open
-      ['ofp','ffd'].forEach(function(id){
-        var c = document.getElementById(id+'-sig-canvas');
-        if (c) c._sigBound = false;
-      });
-      _initCanvas('ofp');
-      _initCanvas('ffd');
-      _resizeCanvas('ofp');
-      _resizeCanvas('ffd');
-      restoreSignedState();
-    }, 150);
-  });
+  document.getElementById('sign-overlay').style.display='block';
+  document.body.style.overflow='hidden';
+  restoreSignedState();
+  setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);
 }
 function closeSign(){
   document.getElementById('sign-overlay').style.display='none';
-  // Reset sigBound so next open gets a fresh canvas context
-  ['ofp','ffd'].forEach(function(id){
-    var c = document.getElementById(id+'-sig-canvas');
-    if (c) c._sigBound = false;
-  });
+  document.body.style.overflow='';
 }
 window.openSign = openSign;
 window.closeSign = closeSign;
@@ -5319,39 +5298,8 @@ function signTab(id){
     if (stab)   stab.classList.toggle('active',   t===id);
     if (spanel) spanel.classList.toggle('active',  t===id);
   });
-  requestAnimationFrame(function(){
-    setTimeout(function(){
-      _initCanvas(id);
-      _resizeCanvas(id);
-    }, 100);
-  });
-}
-
-function _resizeCanvas(id) {
-  var canvas = document.getElementById(id+'-sig-canvas');
-  if (!canvas) return;
-  var dpr = window.devicePixelRatio || 1;
-  var w = canvas.offsetWidth;
-  var h = canvas.offsetHeight;
-  if (!w || !h) {
-    setTimeout(function(){ _resizeCanvas(id); }, 80);
-    return;
-  }
-  var imageData = null;
-  if (_sigHasData[id] && canvas.width && canvas.height) {
-    try { imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
-  }
-  canvas.width  = w * dpr;
-  canvas.height = h * dpr;
-  var ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.strokeStyle = '#7ac4e8';
-  ctx.lineWidth   = 2.2;
-  ctx.lineCap     = 'round';
-  ctx.lineJoin    = 'round';
-  if (imageData) {
-    try { ctx.putImageData(imageData, 0, 0); } catch(e) {}
-  }
+  // Re-init canvas in case it was hidden on first load
+  setTimeout(function(){_initCanvas(id);},30);
 }
 
 // ── Submit sign ────────────────────────────────────────────────────────────
