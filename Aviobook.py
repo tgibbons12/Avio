@@ -151,12 +151,12 @@ def parse_simbrief_xml(xml_data):
 
     def get_navlog_data():
         """
-        Build navlog fix list TOC → TOD (exclusive), mirroring FLITEBRIEF logic:
+        Build navlog fix list TOC &#8594; TOD (exclusive), mirroring FLITEBRIEF logic:
           - ET = time_total (cumulative seconds from departure) as HHMM
           - ATA / rem_fuel computed in JS after pilot enters takeoff time + fuel
           - cum_time_sec and cum_fuel_used stored as data-attributes for JS recalc
         """
-        # ── Plan defaults passed to HTML entry form ───────────────────────────
+        # &#9472;&#9472; Plan defaults passed to HTML entry form &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
         sched_off_ts  = get('times/sched_off', '0')
         orig_tz_hours = int(get('times/orig_timezone', '0'))
         try:
@@ -169,7 +169,7 @@ def parse_simbrief_xml(xml_data):
         plan_ramp_str = get('fuel/plan_ramp', '0')
         plan_ramp     = int(float(plan_ramp_str or '0'))
 
-        # ── Walk fixes TOC → TOD (inclusive) ─────────────────────────────────
+        # &#9472;&#9472; Walk fixes TOC &#8594; TOD (inclusive) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
         navlog_fixes = []
         toc_reached  = False
 
@@ -477,14 +477,14 @@ def parse_simbrief_xml(xml_data):
         'alternate': get_alternates()
     })
 
-    # ── Build HTML NOTAM and Weather sections ─────────────────────────────
+    # &#9472;&#9472; Build HTML NOTAM and Weather sections &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     data['notams_html']   = _build_notams_html(root)
     data['weather_html']  = _build_weather_html(root)
 
     return data
 
 
-# ── NOTAM helpers ─────────────────────────────────────────────────────────────
+# &#9472;&#9472; NOTAM helpers &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 
 def _parse_notam_iso_date(date_str):
     """Parse ISO-ish date string, return datetime or None."""
@@ -617,7 +617,7 @@ _KEYWORD_CAT = [
     (['VORTAC', 'VOR ', 'DME ', 'NDB ', 'NAVAID', 'TACAN', ' ILS '], 'NAVIGATION AIDS'),
 ]
 
-# Role → category display order
+# Role &#8594; category display order
 _NOTAM_CAT_ORDER = {
     'DEPARTURE': [
         'GENERAL', 'RUNWAY', 'TAXIWAY', 'APRON',
@@ -748,7 +748,7 @@ def _render_airport_notams_html(section, role, xml_root):
     if iata:
         airport_label += f" / {iata}"
     if name:
-        airport_label += f" — {_html.escape(name)}"
+        airport_label += f" &mdash; {_html.escape(name)}"
 
     # Build category content first so we can bail if empty
     content = ''
@@ -764,7 +764,7 @@ def _render_airport_notams_html(section, role, xml_root):
         for entry_html, _ in active_items:
             content += entry_html
         if expired_items:
-            content += "<div class='notam-expired-div'>— EXPIRED —</div>\n"
+            content += "<div class='notam-expired-div'>&mdash; EXPIRED &mdash;</div>\n"
             for entry_html, _ in expired_items:
                 content += entry_html
 
@@ -794,7 +794,7 @@ def _build_weather_html(root):
     """
     Build the Weather HTML section, mirroring MASTERLOG weather layout:
       - One collapsible sub-section per airport (DEPARTURE, DESTINATION,
-        TKOF ALTN, ENRTE ALTN, ALTERNATE 1…) with TAF / METAR / ATIS blocks
+        TKOF ALTN, ENRTE ALTN, ALTERNATE 1&hellip;) with TAF / METAR / ATIS blocks
       - One collapsible sub-section per FIR in navlog order for SIGMETs
     """
     import html as _h
@@ -871,7 +871,7 @@ def _build_weather_html(root):
         if wx['iata']:
             title += f" / {wx['iata']}"
         if wx['name']:
-            title += f" — {wx['name']}"
+            title += f" &mdash; {wx['name']}"
         sub_id = f"wx-sub-{icao.lower()}-{role.lower().replace(' ','-')}-{idx}"
         body = ''
         body += _wx_cat('TAF')
@@ -903,7 +903,7 @@ def _build_weather_html(root):
     for i, alt in enumerate(root.findall('alternate'), 1):
         out += _render_station(_from_node(alt), f'ALTERNATE {i}', i)
 
-    # SIGMETs — navlog FIR order (mirrors MASTERLOG)
+    # SIGMETs &mdash; navlog FIR order (mirrors MASTERLOG)
     navlog_firs = OrderedDict()
     for fix in root.findall('navlog/fix'):
         fcode = (fix.findtext('fir') or '').strip().upper()
@@ -935,8 +935,8 @@ def _build_weather_html(root):
                 hdr     = f"SIGMET {sig_id} ({hazard})" if sig_id else "SIGMET"
                 body   += _wx_text(f"{hdr}\n{text}" if text else hdr)
         else:
-            body += "<div class='wx-nil'>NIL — NO ACTIVE SIGMET FOR THIS FIR</div>\n"
-        out += _wx_sub(sub_id, 'SIGMET', f"{fcode} — {display}", body)
+            body += "<div class='wx-nil'>NIL &mdash; NO ACTIVE SIGMET FOR THIS FIR</div>\n"
+        out += _wx_sub(sub_id, 'SIGMET', f"{fcode} &mdash; {display}", body)
 
     return out
 
@@ -992,7 +992,7 @@ def _build_notams_html(root):
         if alt_html:
             out += alt_html
 
-    # Enroute NOTAMs (top-level <notams> block) — ordered by navlog FIR sequence
+    # Enroute NOTAMs (top-level <notams> block) &mdash; ordered by navlog FIR sequence
     enrt_root = root.find('notams')
     if enrt_root is not None:
         import html as _html_mod
@@ -1100,7 +1100,7 @@ def _build_launcher_html(archive_folder):
 
     rows = ""
     for e in entries:
-        label   = f"{e['flight']}  {e['orig']} → {e['dest']}" if e['flight'] else f"{e['orig']} → {e['dest']}"
+        label   = f"{e['flight']}  {e['orig']} &#8594; {e['dest']}" if e['flight'] else f"{e['orig']} &#8594; {e['dest']}"
         sub     = f"{e['date']}  {e['time']} UTC" if e['date'] else e['fname']
         safe_fname = _html_escape.escape(e['fname'])
         rows += (
@@ -1119,7 +1119,7 @@ def _build_launcher_html(archive_folder):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Aviobook — Flights</title>
+<title>Aviobook &mdash; Flights</title>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0;}}
 html{{background:#0d3550;overscroll-behavior-y:none;}}
@@ -1168,13 +1168,13 @@ def main():
     data     = parse_simbrief_xml(xml_data)
     html     = generate_aviobook_html(data)
 
-    # ── Save current flight ───────────────────────────────────────────────────
+    # &#9472;&#9472; Save current flight &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     current_path = "aviobook_flightplan.html"
     with open(current_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Flight plan saved as '{current_path}'.")
 
-    # ── Archive ───────────────────────────────────────────────────────────────
+    # &#9472;&#9472; Archive &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
     g    = data.get("general", {})
@@ -1209,14 +1209,14 @@ def main():
             }, f)
         print(f"Archived as '{arc_html}'.")
 
-    # ── Rebuild launcher ──────────────────────────────────────────────────────
+    # &#9472;&#9472; Rebuild launcher &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     launcher_html = _build_launcher_html(ARCHIVE_FOLDER)
     with open(LAUNCHER_FILE, "w", encoding="utf-8") as f:
         f.write(launcher_html)
     print(f"Launcher updated: '{LAUNCHER_FILE}'.")
 
 
-# ── Default release folder (override via env or server config) ────────────────
+# &#9472;&#9472; Default release folder (override via env or server config) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 DEFAULT_RELEASE_FOLDER = os.environ.get(
     "AVIOBOOK_RELEASE_FOLDER",
     os.path.join(os.path.expanduser("~"), "Dropbox", "Apps", "ForeFlight", "RELEASES")
@@ -1358,7 +1358,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             margin: 0 auto;
             padding: 0 0 10px 0;
         }
-        /* ── TOP STATUS BAR ── */
+        /* &#9472;&#9472; TOP STATUS BAR &#9472;&#9472; */
         .top-bar {
             background: #0b1f30;
             border-bottom: 1px solid #1a3a50;
@@ -1468,11 +1468,11 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             color: #ffffff;
             font-weight: 600;
         }
-        /* ── CONTENT AREA ── */
+        /* &#9472;&#9472; CONTENT AREA &#9472;&#9472; */
         .content {
             padding: 12px 12px 0 12px;
         }
-        /* ── OVERLAY WIDTH CONSTRAINT ── */
+        /* &#9472;&#9472; OVERLAY WIDTH CONSTRAINT &#9472;&#9472; */
         /* All fixed overlays fill the viewport but constrain content to container width */
         .overlay-inner {
             max-width: 900px;
@@ -1480,7 +1480,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             padding: 0 0 80px 0;
             min-height: 100%;
         }
-        /* ── SECTIONS ── */
+        /* &#9472;&#9472; SECTIONS &#9472;&#9472; */
         .section {
             background: linear-gradient(160deg, #1a4a61 0%, #21546D 60%, #1c4a60 100%);
             margin-bottom: 10px;
@@ -1524,7 +1524,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
         .section-body { padding: 10px 16px 12px 16px; }
         .section-body.collapsed { display: none; }
 
-        /* ── SCHEDULE / FLIGHT ARC ── */
+        /* &#9472;&#9472; SCHEDULE / FLIGHT ARC &#9472;&#9472; */
         .on-time-badge {
             display: inline-block;
             background: #1a7a3a;
@@ -1564,7 +1564,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             margin-top: 2px;
             line-height: 1.5;
         }
-        /* Center column — full width */
+        /* Center column &mdash; full width */
         .arc-center {
             width: 100%;
             text-align: center;
@@ -1647,7 +1647,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             line-height: 1.9;
         }
         .arc-meta strong { color: #d8f0ff; font-weight: 600; }
-        /* ── DATA ROWS ── */
+        /* &#9472;&#9472; DATA ROWS &#9472;&#9472; */
         .data-row {
             display: flex;
             justify-content: space-between;
@@ -1684,7 +1684,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             overflow-wrap: break-word;
             line-height: 1.5;
         }
-        /* ── FUEL / WEIGHTS GRID ── */
+        /* &#9472;&#9472; FUEL / WEIGHTS GRID &#9472;&#9472; */
         .fw-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -1714,7 +1714,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             font-weight: 400;
             margin-left: 3px;
         }
-        /* ── ALTERNATE ── */
+        /* &#9472;&#9472; ALTERNATE &#9472;&#9472; */
         .alt-block {
             background: linear-gradient(135deg, #1a4a61 0%, #21546d 100%);
             border: 1px solid rgba(150,210,245,0.18);
@@ -1728,7 +1728,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             color: #7ad8fd;
             margin-bottom: 6px;
         }
-        /* ── CREW ── */
+        /* &#9472;&#9472; CREW &#9472;&#9472; */
         .crew-row {
             display: flex;
             gap: 12px;
@@ -1746,7 +1746,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             padding-top: 1px;
         }
         .crew-name { color: #eaf6ff; }
-        /* ── NOTAM ── */
+        /* &#9472;&#9472; NOTAM &#9472;&#9472; */
         .notam-pinned-bar {
             background: rgba(10,30,50,0.7);
             border: 1px solid #f5a623;
@@ -1830,7 +1830,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        /* ── Weather section ── */
+        /* &#9472;&#9472; Weather section &#9472;&#9472; */
         .wx-text {
             padding: 6px 10px 8px 10px;
         }
@@ -1912,7 +1912,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             border-bottom: 1px dashed rgba(154,136,112,0.3);
             margin: 6px 0 3px 0;
         }
-        /* ── FILE LINK ── */
+        /* &#9472;&#9472; FILE LINK &#9472;&#9472; */
         .file-link {
             display: inline-block;
             color: #7ad8fd;
@@ -1920,14 +1920,14 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             font-size: 13px;
         }
         .file-link:hover { text-decoration: underline; }
-        /* ── IMAGES ── */
+        /* &#9472;&#9472; IMAGES &#9472;&#9472; */
         .image-container img {
             max-width: 100%;
             border-radius: 5px;
             border: 1px solid rgba(90,174,239,0.2);
             margin-top: 8px;
         }
-        /* ── NAVLOG TOGGLE ── */
+        /* &#9472;&#9472; NAVLOG TOGGLE &#9472;&#9472; */
         .navlog-toggle {
             cursor: pointer; user-select: none;
             background: linear-gradient(160deg, #1a4a61 0%, #21546D 60%, #1c4a60 100%);
@@ -1944,7 +1944,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
         .navlog-toggle .nav-icon { color: #7ad8fd; font-size: 17px; }
         .navlog-toggle .collapse-arrow { margin-left: auto; color: #7ad8fd; font-size: 12px; transition: transform 0.2s ease; }
         .navlog-toggle.collapsed .collapse-arrow { transform: rotate(-90deg); }
-        /* ── BOTTOM NAV BAR ── */
+        /* &#9472;&#9472; BOTTOM NAV BAR &#9472;&#9472; */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -1975,7 +1975,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             .fw-grid { grid-template-columns: repeat(2, 1fr); }
         }
         label { display: none; }
-        /* ── NAVLOG TABLE ── */
+        /* &#9472;&#9472; NAVLOG TABLE &#9472;&#9472; */
         /* navlog-table styles injected dynamically per-flight */
         .table-wrapper {
             overflow-x: auto;
@@ -2058,7 +2058,7 @@ window.addEventListener('load', function() {
     t = data['times']
     c = data['crew']
 
-    # ── ForeFlight deep-link: preload route from SimBrief XML ─────────────────
+    # &#9472;&#9472; ForeFlight deep-link: preload route from SimBrief XML &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     import urllib.parse as _urlparse
     _ff_orig  = a['origin']['icao']
     _ff_dest  = a['destination']['icao']
@@ -2082,7 +2082,7 @@ window.addEventListener('load', function() {
     initial_alt = int(g.get('initial_altitude', 0) or 0)
     cruise_alt = f"FL{initial_alt // 100}" if initial_alt > 18000 else f"{initial_alt} ft"
 
-    # ── TOP BAR (sticky) ─────────────────────────────────────────────────────
+    # &#9472;&#9472; TOP BAR (sticky) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     # Derive departure date using LOCAL timezone so "30 MAR" matches local time
     try:
         from datetime import datetime as _dt, timezone as _tz, timedelta as _td
@@ -2101,10 +2101,10 @@ window.addEventListener('load', function() {
     # The icons span both rows vertically
     html += "<div style='display:flex;align-items:center;justify-content:space-between;padding-bottom:0;'>"
 
-    # ── LEFT+CENTER text block ────────────────────────────────────────────────
+    # &#9472;&#9472; LEFT+CENTER text block &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div style='flex:1;min-width:0;'>"
 
-    # Row 1: time LEFT · flight+reg PERFECT CENTER
+    # Row 1: time LEFT &middot; flight+reg PERFECT CENTER
     html += "<div style='display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:3px;'>"
 
     # Left: UTC clock
@@ -2112,7 +2112,7 @@ window.addEventListener('load', function() {
     html += f"<span class='top-bar-time' id='utc-clock'>--:-- UTC</span>"
     html += "</div>"
 
-    # Center: flight + aircraft  ✈SWA677·⊗N766NC – B737-7H4(WL)
+    # Center: flight + aircraft  &#9992;SWA677&middot;&#8855;N766NC &ndash; B737-7H4(WL)
     html += ("<div style='display:flex;justify-content:center;align-items:center;gap:5px;'>"
              "<span style='color:#5ab8e0;font-size:14px;'>&#9992;</span>"
              f"<span class='top-bar-flt'>{g['icao_airline']}{g['flight_number']}</span>"
@@ -2126,7 +2126,7 @@ window.addEventListener('load', function() {
 
     html += "</div>"
 
-    # Row 2: route — ✈KSTL✈KRSW 30 MAR 12:10›14:30  — centered under row 1
+    # Row 2: route &mdash; &#9992;KSTL&#9992;KRSW 30 MAR 12:10&#8250;14:30  &mdash; centered under row 1
     html += "<div class='top-bar-row2' style='justify-content:center;'>"
     html += (f"<span style='color:#5ab8e0;font-size:12px;'>&#9992;</span>"
              f"<span class='icao'>{a['origin']['icao']}</span>"
@@ -2140,12 +2140,12 @@ window.addEventListener('load', function() {
 
     html += "</div>"  # left+center text block
 
-    # ── RIGHT icons — vertically centered across both rows ────────────────────
+    # &#9472;&#9472; RIGHT icons &mdash; vertically centered across both rows &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='top-bar-icons'>"
     html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"/\"' title='Back to Launcher' "
-             "style='font-size:15px;'>&#8962;</button>")   # ⌂ home
+             "style='font-size:15px;'>&#8962;</button>")   # &#8962; home
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='if(window.openSign)openSign()' title='Sign OFP'>"
-             "&#9998;</button>")    # ✎ pencil
+             "&#9998;</button>")    # &#9998; pencil
     html += ("<button class='top-bar-icon-btn' title='Notifications'>"
              "&#128276;</button>")  #  bell
     html += ("<button class='top-bar-icon-btn' title='Profile'>"
@@ -2153,25 +2153,25 @@ window.addEventListener('load', function() {
              "<span class='badge'>2</span>"
              "</button>")
     html += ("<button class='top-bar-icon-btn' onclick='openSettings()' title='Settings' id='settings-btn'>"
-             "&#9881;</button>")   # ⚙ gear
+             "&#9881;</button>")   # &#9881; gear
     html += "</div>"
 
     html += "</div>"  # outer flex row
 
-    # ── Tab bar (rendered by JS based on active bottom-nav section) ──────────
+    # &#9472;&#9472; Tab bar (rendered by JS based on active bottom-nav section) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='tab-bar' id='main-tab-bar'></div>"
 
     html += "</div>"   # top-bar-inner
     html += "</div>"   # top-bar
 
-    # ── GREEN BANNERS (fixed just below top-bar, visible across ALL tabs) ────
+    # &#9472;&#9472; GREEN BANNERS (fixed just below top-bar, visible across ALL tabs) &#9472;&#9472;&#9472;&#9472;
     _pic_name   = _captain_name or (c.get('dx') or c.get('fo') or 'PILOT').strip().upper()
     _ofp_rls    = data['ofp'].get('time', '1')
     _airline    = g.get('icao_airline', '')
     _flt_num    = g.get('flight_number', '')
     html += (
         f"<div id='sign-banners' style='display:none;width:100%;overflow:hidden;box-sizing:border-box;'>"
-        # FFD banner — transparent bg, green border
+        # FFD banner &mdash; transparent bg, green border
         f"<div id='banner-ffd' style='"
         f"background:rgba(30,180,80,0.18);border-bottom:1px solid rgba(76,223,138,0.45);"
         f"padding:7px 14px;box-sizing:border-box;width:100%;overflow:hidden;"
@@ -2180,7 +2180,7 @@ window.addEventListener('load', function() {
         f"<span style='font-size:12px;font-weight:600;color:#4cdf8a;letter-spacing:0.2px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>"
         f"FIT FOR DUTY SIGNED ON <span id='banner-ffd-time'></span></span>"
         f"</div>"
-        # OFP RLS banner — solid lime green, dark text (per reference)
+        # OFP RLS banner &mdash; solid lime green, dark text (per reference)
         f"<div id='banner-ofp' style='"
         f"background:#32d96a;"
         f"padding:9px 14px;box-sizing:border-box;width:100%;overflow:hidden;"
@@ -2196,7 +2196,7 @@ window.addEventListener('load', function() {
 
     html += "<div class='content'>"
 
-    # ── SCHEDULE SECTION ─────────────────────────────────────────────────────
+    # &#9472;&#9472; SCHEDULE SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-schedule' onclick='toggleSection(\"sec-schedule\")'>"
     html += "    <span class='section-icon'>&#9201;</span> Schedule"
@@ -2213,15 +2213,15 @@ window.addEventListener('load', function() {
     ofp_rls   = data['ofp'].get('time', '1')
     est_block_display = t.get('est_block') or t.get('sched_block') or '----'
 
-    # ── ON TIME / DELAYED badge — based on OUT (pushback) time ──────────────
+    # &#9472;&#9472; ON TIME / DELAYED badge &mdash; based on OUT (pushback) time &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _sched_off_ts_val = int(data['times']['sched_off_ts'] or 0)
     _taxi_out_secs    = int(data['times'].get('taxi_out') or 0)
     _out_ts_val       = _sched_off_ts_val - _taxi_out_secs   # OUT = OFF minus taxi
     html += "  <div style='margin-bottom:6px;'>"
-    html += f"    <span id='status-badge' class='on-time-badge' data-out-ts='{_out_ts_val}' onclick='pillTap()' title='Tap to start OUT · Tap again for ON BLOCKS · Tap to reset'>ON TIME</span>"
+    html += f"    <span id='status-badge' class='on-time-badge' data-out-ts='{_out_ts_val}' onclick='pillTap()' title='Tap to start OUT &middot; Tap again for ON BLOCKS &middot; Tap to reset'>ON TIME</span>"
     html += "  </div>"
 
-    # ── ICAO row — normal flow, flex left/right ───────────────────────────────
+    # &#9472;&#9472; ICAO row &mdash; normal flow, flex left/right &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "  <div class='arc-icao-row'>"
     html += "    <div class='arc-icao-left'>"
     html += f"      <div class='arc-icao'>{a['origin']['icao']}</div>"
@@ -2239,12 +2239,12 @@ window.addEventListener('load', function() {
     html += "    </div>"
     html += "  </div>"
 
-    # ── CENTER — flight number, swoop, meta, times ────────────────────────────
+    # &#9472;&#9472; CENTER &mdash; flight number, swoop, meta, times &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "  <div class='arc-center'>"
     html += f"    <div class='arc-flightnum'>{g['icao_airline']}{g['flight_number']}</div>"
 
-    # ── Single full-width SVG: flight profile + dots + labels ──────────────────
-    # ViewBox 1000×160. Baseline at y=52. Profile hump above. Labels below.
+    # &#9472;&#9472; Single full-width SVG: flight profile + dots + labels &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+    # ViewBox 1000&times;160. Baseline at y=52. Profile hump above. Labels below.
     # Dots ON line at cy=52. Label at y=68 (light blue, small). Value at y=88 (white, bold).
     # Meta text above line inside cruise plateau.
     # Build local time strings and timezone label for each dot
@@ -2280,7 +2280,7 @@ window.addEventListener('load', function() {
     ]
     svg  = ("<svg viewBox='0 0 1000 160' xmlns='http://www.w3.org/2000/svg' "
             "style='width:100%;display:block;margin:2px 0 0 0;'>"
-            # flight profile — baseline at y=80, peak at y=14
+            # flight profile &mdash; baseline at y=80, peak at y=14
             "<path d='M 0 80 L 300 80 "
             "C 340 80 380 14 410 14 "
             "L 590 14 "
@@ -2289,13 +2289,13 @@ window.addEventListener('load', function() {
             "fill='none' stroke='#7ad8fd' stroke-width='3.5' "
             "stroke-linecap='round' stroke-linejoin='round'/>"
             )
-    # OFP RLS pill — black filled, clear gap below profile peak (peak y=14, pill y=26)
+    # OFP RLS pill &mdash; black filled, clear gap below profile peak (peak y=14, pill y=26)
     svg += ("<rect x='435' y='26' width='130' height='22' rx='11' ry='11' "
             "fill='#000' stroke='#7ad8fd' stroke-width='1.5'/>"
             f"<text x='500' y='42' text-anchor='middle' "
             f"font-family=\"-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Arial,sans-serif\" font-size='13' font-weight='700' fill='#7ad8fd' "
             f"letter-spacing='0.5'>OFP RLS {ofp_rls}</text>")
-    # Meta lines — 16px spacing, starting y=58
+    # Meta lines &mdash; 16px spacing, starting y=58
     meta_lines = [
         (f"FLIGHT TIME  {est_block_display}",          "700"),
         (f"GROUND DISTANCE  {g['route_distance']} NM", "400"),
@@ -2337,7 +2337,7 @@ window.addEventListener('load', function() {
             f"{tz_lbl}</text>"
         )
     svg += "</svg>"
-    # Make the SVG / flight-profile area clickable → opens F&W overlay
+    # Make the SVG / flight-profile area clickable &#8594; opens F&W overlay
     svg_wrapped = (
         "<div id='fw-trigger' style='cursor:pointer;' title='Tap for Fuel &amp; Weights'>"
         + svg +
@@ -2349,7 +2349,7 @@ window.addEventListener('load', function() {
     html += "  </div>"  # section-body
     html += "</div>"    # section
 
-    # ── DISPATCH SECTION ─────────────────────────────────────────────────────
+    # &#9472;&#9472; DISPATCH SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-dispatch' onclick='toggleSection(\"sec-dispatch\")'>"
     html += "    <span class='section-icon'>&#127911;</span> Dispatch"
@@ -2365,7 +2365,7 @@ window.addEventListener('load', function() {
         html += f"  <div class='route-box'>{_html_escape.escape(g['dx_rmk'])}</div>"
     html += "  </div></div>"
 
-    # ── ROUTE SECTION ────────────────────────────────────────────────────────
+    # &#9472;&#9472; ROUTE SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-route' onclick='toggleSection(\"sec-route\")'>"
     html += "    <span class='section-icon'>&#9685;</span> Route"
@@ -2386,7 +2386,7 @@ window.addEventListener('load', function() {
     html += f"  <div class='data-row'><span class='data-label'>COST INDEX</span><span class='data-value'>{g['cost_index']}</span></div>"
     html += "  </div></div>"
 
-    # ── FUEL SECTION ─────────────────────────────────────────────────────────
+    # &#9472;&#9472; FUEL SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     f = data['fuel']
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-fuel' onclick='toggleSection(\"sec-fuel\")'>"
@@ -2421,7 +2421,7 @@ window.addEventListener('load', function() {
     html += f"  <div class='data-row' style='margin-top:10px;'><span class='data-label'>COST INDEX</span><span class='data-value'>{g['cost_index']}</span></div>"
     html += "  </div></div>"
 
-    # ── WEIGHTS SECTION ───────────────────────────────────────────────────────
+    # &#9472;&#9472; WEIGHTS SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     w = data['weights']
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-weights' onclick='toggleSection(\"sec-weights\")'>"
@@ -2440,7 +2440,7 @@ window.addEventListener('load', function() {
         html += f"<div class='fw-item'><div class='fw-label'>PAX</div><div class='fw-value'>{g['passengers']}</div></div>"
     html += "  </div></div></div>"
 
-    # ── ALTERNATE AIRPORTS ────────────────────────────────────────────────────
+    # &#9472;&#9472; ALTERNATE AIRPORTS &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     alternates = data.get('alternate', [])
     if alternates:
         html += "<div class='section'>"
@@ -2467,7 +2467,7 @@ window.addEventListener('load', function() {
                 alt_fl = f"FL{alt_cruise//100}" if alt_cruise > 18000 else f"{alt_cruise}ft"
             except Exception: alt_fl = "---"
             html += f"  <div class='alt-block'>"
-            name_str = f" — {alt['icao']}" + (f" / {alt['iata']}" if alt['iata'] else '') + (f"  {alt['name']}" if alt['name'] else '')
+            name_str = f" &mdash; {alt['icao']}" + (f" / {alt['iata']}" if alt['iata'] else '') + (f"  {alt['name']}" if alt['name'] else '')
             html += f"    <div class='alt-title'>{label}{name_str}</div>"
             if alt['distance'] and alt['distance'] != '0':
                 html += f"    <div class='data-row'><span class='data-label'>DISTANCE</span><span class='data-value'>{alt['distance']} NM</span></div>"
@@ -2499,7 +2499,7 @@ window.addEventListener('load', function() {
             html += "  </div>"
         html += "  </div></div>"
 
-    # ── CREW SECTION ──────────────────────────────────────────────────────────
+    # &#9472;&#9472; CREW SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-crew' onclick='toggleSection(\"sec-crew\")'>"
     html += "    <span class='section-icon'>&#128100;</span> Crew"
@@ -2514,7 +2514,7 @@ window.addEventListener('load', function() {
             html += f"  <div class='crew-row'><span class='crew-role'>FA</span><span class='crew-name'>{fa}</span></div>"
     html += "  </div></div>"
 
-    # ── DOCUMENTS SECTION ─────────────────────────────────────────────────────
+    # &#9472;&#9472; DOCUMENTS SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     if data.get('files'):
         html += "<div class='section'>"
         html += "  <div class='section-header' id='sec-documents' onclick='toggleSection(\"sec-documents\")'>"
@@ -2524,17 +2524,17 @@ window.addEventListener('load', function() {
         html += "  <div class='section-body' id='sec-documents-body'>"
         for file in data['files']:
             html += f"  <div class='data-row'><span class='data-label'>{file['name']}</span>"
-            html += f"  <a href='{file['link']}' target='_blank' class='file-link'>View ↗</a></div>"
+            html += f"  <a href='{file['link']}' target='_blank' class='file-link'>View &#8599;</a></div>"
         html += "  </div></div>"
 
-    # ── INTERACTIVE NAVLOG (TOC → TOD) ──────────────────────────────────────
+    # &#9472;&#9472; INTERACTIVE NAVLOG (TOC &#8594; TOD) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     navlog_data  = data.get('navlog', {})
     navlog_fixes = navlog_data.get('fixes', [])
     plan_ramp    = navlog_data.get('plan_ramp', 0)
     sched_off    = navlog_data.get('sched_off_hhmm', '0000')
     flight_key   = navlog_data.get('flight_key', 'FLT')
 
-    # Serialize fix data for JS — include ALL fixes (TOC, TOD, and synthetic DEST)
+    # Serialize fix data for JS &mdash; include ALL fixes (TOC, TOD, and synthetic DEST)
     import json as _json
     dest_icao_js   = data['airports']['destination']['icao']
     try:
@@ -2567,7 +2567,7 @@ window.addEventListener('load', function() {
 
     navlog_css_js = f"""
 <style>
-/* ── entry overlay ─────────────────────────────────────────────────── */
+/* &#9472;&#9472; entry overlay &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
 #entry-overlay{{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,21,32,0.97);z-index:1100;align-items:center;justify-content:center;}}
 #entry-overlay.visible{{display:flex;}}
 #entry-card{{background:linear-gradient(160deg,#1a4a61 0%,#21546D 60%,#1c4a60 100%);border:1px solid rgba(90,174,239,0.2);border-radius:8px;padding:28px 32px;min-width:300px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6);}}
@@ -2579,7 +2579,7 @@ window.addEventListener('load', function() {
 .entry-hint{{font-size:11px;color:#9ec8e0;margin-top:4px;}}
 #entry-submit{{background:linear-gradient(90deg,#1a6a9a,#1e7db8);color:#fff;border:none;padding:12px 0;border-radius:4px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;margin-top:8px;letter-spacing:1px;text-transform:uppercase;}}
 
-/* ── waypoint popup ────────────────────────────────────────────────── */
+/* &#9472;&#9472; waypoint popup &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
 #wp-overlay{{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,21,32,0.88);z-index:1100;align-items:center;justify-content:center;}}
 #wp-overlay.visible{{display:flex;}}
 #wp-card{{background:linear-gradient(160deg,#1a4a61 0%,#21546D 60%,#1c4a60 100%);border:1px solid rgba(90,174,239,0.25);border-radius:10px;padding:24px;width:360px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.7);font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;}}
@@ -2603,7 +2603,7 @@ window.addEventListener('load', function() {
 .wp-btn-cancel{{flex:1;background:transparent;color:#6ab4d4;border:1px solid rgba(90,174,239,.4);padding:11px 0;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:1px;}}
 .wp-btn-done{{flex:2;background:linear-gradient(90deg,#1a6a9a,#1e7db8);color:#fff;border:none;padding:11px 0;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px;}}
 
-/* ── navlog: status bar ────────────────────────────────────────────── */
+/* &#9472;&#9472; navlog: status bar &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
 #nl-status{{
     display:flex;align-items:center;
     background:#0b1f30;
@@ -2627,7 +2627,7 @@ window.addEventListener('load', function() {
     font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
 }}
 
-/* ── navlog: takeoff bar ───────────────────────────────────────────── */
+/* &#9472;&#9472; navlog: takeoff bar &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
 #nl-toff-bar{{
     display:flex;align-items:center;gap:8px;
     background:#1a4a61;
@@ -2665,11 +2665,11 @@ window.addEventListener('load', function() {
     font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
 }}
 
-/* ── navlog: table wrapper ─────────────────────────────────────────── */
+/* &#9472;&#9472; navlog: table wrapper &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
 #nl-table-wrap{{padding:0 12px 16px;}}
 
-/* ── column header row ─────────────────────────────────────────────── */
-/* Two rows: titles span sub-cols, then sub-labels — both use same grid as .nl-row */
+/* &#9472;&#9472; column header row &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
+/* Two rows: titles span sub-cols, then sub-labels &mdash; both use same grid as .nl-row */
 .nlh-row,.nlh-subs-row{{
     display:grid;
     grid-template-columns: 22% 42px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 4px;
@@ -2703,7 +2703,7 @@ window.addEventListener('load', function() {
     letter-spacing:.5px;text-transform:uppercase;text-align:center;
 }}
 
-/* ── navlog cards ──────────────────────────────────────────────────── */
+/* &#9472;&#9472; navlog cards &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
 .nl-card{{
     border-radius:6px;
     overflow:hidden;
@@ -2724,7 +2724,7 @@ window.addEventListener('load', function() {
 }}
 .nl-row:active{{background:rgba(90,174,239,0.06);}}
 
-/* fix name — same white as all data */
+/* fix name &mdash; same white as all data */
 .nl-fix{{
     font-size:13px;color:#eaf6ff;font-weight:400;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -2735,7 +2735,7 @@ window.addEventListener('load', function() {
     letter-spacing:0;text-transform:none;
 }}
 
-/* MA — white like all data */
+/* MA &mdash; white like all data */
 .nl-ma{{
     text-align:center;
     font-size:13px;color:#eaf6ff;font-weight:400;
@@ -2773,7 +2773,7 @@ window.addEventListener('load', function() {
     transition:width .15s ease;
     width:4px;
 }}
-/* clock icon revealed on swipe — shown via JS adding .swiping class to card */
+/* clock icon revealed on swipe &mdash; shown via JS adding .swiping class to card */
 .nl-card.swiping .nl-swipe-bar{{
     width:38px;
     background:rgba(0,200,200,0.25);
@@ -2828,7 +2828,7 @@ var PLAN_LDG_FUEL= {int(float(data['fuel'].get('plan_landing') or 0))};
 var _wpIdent = null;
 
 function hhmm2mins(s) {{
-    s = String(s||'0000').replace(':','').replace('——','0000').padStart(4,'0');
+    s = String(s||'0000').replace(':','').replace('&mdash;&mdash;','0000').padStart(4,'0');
     return parseInt(s.slice(0,2))*60+parseInt(s.slice(2));
 }}
 function mins2hhmm(m) {{
@@ -2866,7 +2866,7 @@ function applyEntryValues() {{
     if(_fuelInpEl) _fuelInpEl.value=String(fuel);
     document.getElementById('entry-overlay').classList.remove('visible');
     if(window.updateStatusBadge) updateStatusBadge();
-    // Flip ETOT → ATOT once a real T/O time has been entered
+    // Flip ETOT &#8594; ATOT once a real T/O time has been entered
     var etotEl = document.getElementById('svg-lbl-etot');
     if(etotEl) etotEl.textContent = 'ATOT';
 }}
@@ -2903,7 +2903,7 @@ function updateEntryDelta(fid,orig,did,isTime) {{
     }}
 }}
 
-// Swipe-left → open confirm popup | tap → expand detail (handled by onclick)
+// Swipe-left &#8594; open confirm popup | tap &#8594; expand detail (handled by onclick)
 (function() {{
     var sx=0, sy0=0, tr=null, swiping=false, locked=false, moved=false;
 
@@ -2960,7 +2960,7 @@ function openWp(ident) {{
     if(!card) return;
     _wpIdent=ident;
     document.getElementById('wp-fix-name').textContent=ident;
-    var pAlt=card.dataset.plndAlt||'—', pEt=card.dataset.plndEt||'—', pFuel=card.dataset.plndFuel||'—';
+    var pAlt=card.dataset.plndAlt||'&mdash;', pEt=card.dataset.plndEt||'&mdash;', pFuel=card.dataset.plndFuel||'&mdash;';
     document.getElementById('wp-p-alt').textContent=pAlt;
     document.getElementById('wp-p-et').textContent=typeof pEt==='string'&&pEt.length===4?pEt.slice(0,2)+':'+pEt.slice(2):pEt;
     document.getElementById('wp-p-fuel').textContent=pFuel;
@@ -2968,9 +2968,9 @@ function openWp(ident) {{
     var existAlt  = card.dataset.actAlt||'';
     var existEt   = card.dataset.actEt||'';
     var existFuel = card.dataset.actFuel||'';
-    document.getElementById('wp-a-alt').value  = existAlt  ? existAlt  : (pAlt!=='—'?pAlt:'');
+    document.getElementById('wp-a-alt').value  = existAlt  ? existAlt  : (pAlt!=='&mdash;'?pAlt:'');
     document.getElementById('wp-a-et').value   = existEt   ? existEt.slice(0,2)+':'+existEt.slice(2) : (pEt.length===4?pEt.slice(0,2)+':'+pEt.slice(2):'');
-    document.getElementById('wp-a-fuel').value = existFuel ? existFuel : (pFuel!=='—'?pFuel:'');
+    document.getElementById('wp-a-fuel').value = existFuel ? existFuel : (pFuel!=='&mdash;'?pFuel:'');
     var cards=Array.from(document.querySelectorAll('.nl-card[data-ident]'));
     var idx=cards.indexOf(card);
     var nextEt=(idx>=0&&idx<cards.length-1)?(cards[idx+1].dataset.plndEt||''):'';
@@ -3006,18 +3006,18 @@ function wpCheckFuelWarn() {{
 function closeWp() {{ document.getElementById('wp-overlay').classList.remove('visible'); _wpIdent=null; }}
 
 function normFL(v) {{
-    // 340 → FL340 (display), stored as "340"
-    // 34000 → "340"
+    // 340 &#8594; FL340 (display), stored as "340"
+    // 34000 &#8594; "340"
     v = v.replace(/[^0-9.]/g,'').trim();
     if(!v) return '';
     var n = parseFloat(v);
-    if(n >= 1000) return String(Math.round(n/100));   // 34000 → 340, 18000 → 180
-    return String(Math.round(n));                      // 340 → 340, 180 → 180
+    if(n >= 1000) return String(Math.round(n/100));   // 34000 &#8594; 340, 18000 &#8594; 180
+    return String(Math.round(n));                      // 340 &#8594; 340, 180 &#8594; 180
 }}
 function normFuel(v) {{
-    // 19.4 → 19400, 194 → 19400 (if <1000 treat as hundreds? No — if <1000 ambiguous, use as-is)
-    // Rule: if value has decimal → multiply by 1000 (19.4 → 19400)
-    //       if value >= 100 and <= 999 → multiply by 100 (194 → 19400)
+    // 19.4 &#8594; 19400, 194 &#8594; 19400 (if <1000 treat as hundreds? No &mdash; if <1000 ambiguous, use as-is)
+    // Rule: if value has decimal &#8594; multiply by 1000 (19.4 &#8594; 19400)
+    //       if value >= 100 and <= 999 &#8594; multiply by 100 (194 &#8594; 19400)
     //       else use raw integer
     v = v.trim();
     if(!v) return '';
@@ -3078,7 +3078,7 @@ function nlStatusUpdate() {{
     var lastCard=cards[cards.length-1];
     var toff=(document.getElementById('nl-toff-inp')||{{}}).value||'';
 
-    // ── ELDT ─────────────────────────────────────────────────────────────────
+    // &#9472;&#9472; ELDT &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     var eldtEl=document.getElementById('nl-eldt');
     if(eldtEl){{
         if(toff.length===4&&lastCard.dataset.plndEt&&lastCard.dataset.plndEt.length===4){{
@@ -3088,7 +3088,7 @@ function nlStatusUpdate() {{
         }}
     }}
 
-    // ── EST LDG FUEL ─────────────────────────────────────────────────────────
+    // &#9472;&#9472; EST LDG FUEL &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     var ldgFuel=null;
     var ldgEl=document.getElementById('nl-ldgfuel');
     if(ldgEl){{
@@ -3102,7 +3102,7 @@ function nlStatusUpdate() {{
             ldgFuel=Math.round((parseInt(lastActCard.dataset.actFuel)||0)-rem);
             ldgEl.textContent=ldgFuel>0?ldgFuel.toLocaleString():'\u2014\u2014';
         }}else{{
-            // No actuals — use entered block fuel minus total planned burn to dest
+            // No actuals &mdash; use entered block fuel minus total planned burn to dest
             var enteredFuel=parseInt((document.getElementById('nl-fuel-inp')||{{}}).value||
                                      (document.getElementById('input-fuel')||{{}}).value||'0')||0;
             var totalBurn=parseFloat(lastCard.dataset.cumfuel)||0;
@@ -3116,7 +3116,7 @@ function nlStatusUpdate() {{
         }}
     }}
 
-    // ── EST LDG WEIGHT ───────────────────────────────────────────────────────
+    // &#9472;&#9472; EST LDG WEIGHT &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     var wgtEl=document.getElementById('nl-ldgwgt');
     if(wgtEl&&PLAN_ZFW>0){{
         var lf=ldgFuel!==null?ldgFuel:PLAN_LDG_FUEL;
@@ -3165,13 +3165,13 @@ function nlFir(gid) {{
 
 function setTrend(row,sel,plnd,act,isTime) {{
     var c=row.querySelector(sel); if(!c) return;
-    if(!act||!plnd||plnd==='—'||plnd==='') {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
+    if(!act||!plnd||plnd==='&mdash;'||plnd==='') {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
     var diff=isTime?hhmm2mins(act)-hhmm2mins(plnd):(parseInt(act)||0)-(parseInt(plnd)||0);
     if(diff===0) {{ c.textContent=''; c.className=c.className.replace(/ ?pos| ?neg/g,''); return; }}
-    // Time: earlier (diff<0) = good = green ↓ | later (diff>0) = bad = red ↑
-    // Fuel: higher (diff>0) = good = green ↑ | lower (diff<0) = bad = red ↓
+    // Time: earlier (diff<0) = good = green &#8595; | later (diff>0) = bad = red &#8593;
+    // Fuel: higher (diff>0) = good = green &#8593; | lower (diff<0) = bad = red &#8595;
     var better = isTime ? diff<0 : diff>0;
-    var arrow = diff>0 ? ' ↑' : ' ↓';
+    var arrow = diff>0 ? ' &#8593;' : ' &#8595;';
     if(isTime) {{ var a=Math.abs(diff); c.textContent=(diff>0?'+':'-')+String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0')+arrow; }}
     else {{ c.textContent=(diff>0?'+':'')+Math.round(diff)+arrow; }}
     c.className=c.className.replace(/ ?pos| ?neg/g,'')+(better?' pos':' neg');
@@ -3287,7 +3287,7 @@ function finalSubmit() {{
 """
     html += navlog_css_js
 
-    # ── FINAL SUBMIT MODAL ────────────────────────────────────────────────────
+    # &#9472;&#9472; FINAL SUBMIT MODAL &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += """
 <div id='fs-overlay' style='display:none;position:fixed;top:0;left:0;right:0;bottom:0;
   z-index:1200;background:rgba(8,24,38,0.82);align-items:center;justify-content:center;
@@ -3329,10 +3329,10 @@ function finalSubmit() {{
 
 
 
-    # ── Close overview content div before tab overlays ────────────────────────
+    # &#9472;&#9472; Close overview content div before tab overlays &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "</div>"  # content
 
-    # ── NAVLOG TAB OVERLAY ────────────────────────────────────────────────────
+    # &#9472;&#9472; NAVLOG TAB OVERLAY &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _tab_overlay_style = ("display:none;position:fixed;top:0;left:0;right:0;bottom:0;"
                           "z-index:600;padding-top:calc(var(--topbar-h,88px) + var(--banner-h,0px));"
                           "padding-bottom:80px;"
@@ -3342,7 +3342,7 @@ function finalSubmit() {{
     html += f"<div id='tab-navlog' style='{_tab_overlay_style}'>"
     html += "<div class='overlay-inner' id='nl-overlay-inner'>"
 
-    # Fixed navlog header bars — pinned just below the topbar, always accessible
+    # Fixed navlog header bars &mdash; pinned just below the topbar, always accessible
     html += "<div id='nl-sticky-wrap' style='position:fixed;left:0;right:0;top:var(--topbar-h,88px);z-index:601;'>"
     html += "<div style='max-width:900px;margin:0 auto;'>"
 
@@ -3386,13 +3386,13 @@ function finalSubmit() {{
     )
     html += "</div>"  # /max-width centering inner
     html += "</div>"  # /nl-sticky-wrap (fixed bars)
-    # Spacer — JS sets its height to match the fixed bars so content clears them
+    # Spacer &mdash; JS sets its height to match the fixed bars so content clears them
     html += "<div id='nl-bar-spacer'></div>"
 
-    # OFP RLS banner (signed) and read-only bar (unsigned) — content width, in flow
+    # OFP RLS banner (signed) and read-only bar (unsigned) &mdash; content width, in flow
     html += (
         f"<div style='padding:10px 12px 0;'>"
-        # Green signed banner — hidden until OFP accepted
+        # Green signed banner &mdash; hidden until OFP accepted
         f"<div id='nl-rls-banner' style='display:none;background:#32d96a;border-radius:7px;"
         f"padding:9px 14px;align-items:center;gap:10px;margin-bottom:4px;'>"
         f"<span style='color:#0a2e14;font-size:15px;font-weight:700;'>&#10003;</span>"
@@ -3400,7 +3400,7 @@ function finalSubmit() {{
         f"font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;'>"
         f"OFP RLS {_nl_rls} ACCEPTED</span>"
         f"</div>"
-        # Yellow read-only bar — shown until signed
+        # Yellow read-only bar &mdash; shown until signed
         f"<div id='nl-unsigned-bar' style='display:flex;align-items:center;gap:10px;"
         f"background:rgba(180,120,0,0.18);border:1px solid rgba(220,160,0,0.3);border-radius:7px;"
         f"padding:8px 14px;margin-bottom:4px;'>"
@@ -3412,10 +3412,10 @@ function finalSubmit() {{
         f"</div>"
     )
 
-    # ── NAVLOG: div-card layout ───────────────────────────────────────────────
+    # &#9472;&#9472; NAVLOG: div-card layout &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div id='nl-table-wrap'>\n"
 
-    # Column header rows — titles row + sub-labels row, both using same grid as cards
+    # Column header rows &mdash; titles row + sub-labels row, both using same grid as cards
     html += (
         # Row 1: group titles (spanning their sub-columns)
         "<div class='nlh-row'>"
@@ -3559,7 +3559,7 @@ function finalSubmit() {{
         is_toc = fix.get('is_toc')
         rc = 'nl-toc' if is_toc else ('nl-tod' if is_tod else '')
 
-        # FIR label — just a small text divider, no card
+        # FIR label &mdash; just a small text divider, no card
         fir_code = (fix.get('fir') or '').strip().upper()
         fir_name = (fix.get('fir_name') or '').strip()
         if fir_code and fir_code != _last_fir and not is_toc:
@@ -3575,13 +3575,13 @@ function finalSubmit() {{
                 f"<div id='{gid}-detail' style='display:none;padding:8px 12px 4px;'>"
                 f"<div style='display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;'>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>VHF 1</div>"
-                f"<input type='text' placeholder='— MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='&mdash; MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>VHF 2</div>"
-                f"<input type='text' placeholder='— MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='&mdash; MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>CPDLC</div>"
-                f"<input type='text' placeholder='—' maxlength='20' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='&mdash;' maxlength='20' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>Notes</div>"
-                f"<input type='text' placeholder='—' maxlength='40' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='&mdash;' maxlength='40' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"</div></div>\n"
             )
 
@@ -3607,7 +3607,7 @@ function finalSubmit() {{
     html += "</div>"  # overlay-inner
     html += "</div>"  # tab-navlog
 
-    # Images, Weather, NOTAMs — rendered as full-screen tab overlays
+    # Images, Weather, NOTAMs &mdash; rendered as full-screen tab overlays
     if data.get('images'):
         html += f"<div id='tab-maps' style='{_tab_overlay_style}'>"
         html += "<div class='overlay-inner'>"
@@ -3647,10 +3647,10 @@ function finalSubmit() {{
         html += "</div>"   # overlay-inner
         html += "</div>"   # tab-notams
 
-    # ── BOTTOM NAV BAR (Aviobook style) ──────────────────────────────────────
+    # &#9472;&#9472; BOTTOM NAV BAR (Aviobook style) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='bottom-nav'>"
     for icon, label, section, active, link in [
-        ("✈",        "OFP",        "ofp",        False, None),
+        ("&#9992;",        "OFP",        "ofp",        False, None),
         ("&#9741;",  "BRIEFING",   "briefing",   True,  None),
         ("&#9992;",  "AIRPORTS",   "airports",   False, None),
         ("&#9999;",  "NOTES",      "notes",      False, None),
@@ -3675,7 +3675,7 @@ function finalSubmit() {{
             html += "</div>"
     html += "</div>"
 
-    # ── NOTAM PIN JS ──────────────────────────────────────────────────────────
+    # &#9472;&#9472; NOTAM PIN JS &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += """
 <script>
 var pinnedNotams = {};
@@ -3758,12 +3758,12 @@ window.addEventListener('load', function() {
     renderPinnedBar();
 });
 
-// ── Sign overlay JS ─────────────────────────────────────────────────────
+// &#9472;&#9472; Sign overlay JS &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 var _signed={};
 var _sigDrawing={ofp:false,ffd:false};
 var _sigHasData={ofp:false,ffd:false};
 
-// ── Signature canvas init ─────────────────────────────────────────────────
+// &#9472;&#9472; Signature canvas init &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 function _initCanvas(id) {
   var canvas = document.getElementById(id+'-sig-canvas');
   if (!canvas) return;
@@ -3840,7 +3840,7 @@ function clearSig(id) {
   if (st) st.textContent = '';
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// &#9472;&#9472; Helpers &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 function _genSubId(name,id){
   var raw=(name||'').toUpperCase().replace(/\s+/g,'')+'\x7c'+FLIGHT_KEY+'\x7c'+id.toUpperCase()+'\x7c'+new Date().toISOString().slice(0,10);
   var h=5381;for(var i=0;i<raw.length;i++){h=((h<<5)+h)^raw.charCodeAt(i);h=h>>>0;}
@@ -3849,7 +3849,7 @@ function _genSubId(name,id){
   var p3=(raw.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0)%65536).toString(16).toUpperCase().padStart(4,'0');
   return p1+'-'+p2+'-'+p3;
 }
-function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
+function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' &mdash; '+hh+':'+mm+'Z';}
 function openSign(){document.getElementById('sign-overlay').style.display='block';document.body.style.overflow='hidden';restoreSignedState();setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);}
 window.openSign = openSign;
 window.closeSign = closeSign;
@@ -3863,7 +3863,7 @@ function signTab(id){
   setTimeout(function(){_initCanvas(id);},30);
 }
 
-// ── Submit sign ────────────────────────────────────────────────────────────
+// &#9472;&#9472; Submit sign &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 function submitSign(id){
   var nameEl=document.getElementById(id+'-name');
   var certEl=document.getElementById(id+'-cert');
@@ -3979,7 +3979,7 @@ window.addEventListener('DOMContentLoaded',restoreSignedState);
 
     html += """
 <script>
-// ── Simulator timezone offset (hours) ────────────────────────────────────
+// &#9472;&#9472; Simulator timezone offset (hours) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 window._tzOffsetHours = 0;
 try { var _saved = localStorage.getItem('av_tz_offset'); if (_saved !== null) window._tzOffsetHours = parseInt(_saved) || 0; } catch(e) {}
 
@@ -4036,7 +4036,7 @@ function resetTzOffset() {
 }
 
 (function() {
-    // ── Flight state: 'pre' | 'airborne' | 'onblocks' ────────────────────────
+    // &#9472;&#9472; Flight state: 'pre' | 'airborne' | 'onblocks' &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     var _flightState = 'pre';
     var _blockOffMs  = 0;
     var _blockOnMs   = 0;
@@ -4062,7 +4062,7 @@ function resetTzOffset() {
         badge.textContent = text;
     }
 
-    // Format milliseconds as HHMM (e.g. 75 mins → "0115")
+    // Format milliseconds as HHMM (e.g. 75 mins &#8594; "0115")
     function _msToHHMM(ms) {
         var totalMins = Math.floor(Math.abs(ms) / 60000);
         var h = Math.floor(totalMins / 60), m = totalMins % 60;
@@ -4084,10 +4084,10 @@ function resetTzOffset() {
 
         if (_flightState === 'airborne') {
             // Elapsed since pilot tapped OUT
-            _setBadge(badge, 'airborne-badge', '✈ ' + _fmtElapsed(nowMs - _blockOffMs));
+            _setBadge(badge, 'airborne-badge', '&#9992; ' + _fmtElapsed(nowMs - _blockOffMs));
         } else if (_flightState === 'onblocks') {
             // Total block time
-            _setBadge(badge, 'onblocks-badge', '⬛ ' + _fmtElapsed(_blockOnMs - _blockOffMs));
+            _setBadge(badge, 'onblocks-badge', '&#11035; ' + _fmtElapsed(_blockOnMs - _blockOffMs));
         } else {
             // Pre-departure: compare sim clock to scheduled OUT
             if (!outTs) { _setBadge(badge, '', 'ON TIME'); return; }
@@ -4101,7 +4101,7 @@ function resetTzOffset() {
     }
     window.updateStatusBadge = updateStatusBadge;
 
-    // Tap once → OUT, tap again → ON BLOCKS, tap again → reset
+    // Tap once &#8594; OUT, tap again &#8594; ON BLOCKS, tap again &#8594; reset
     window.pillTap = function() {
         if (_flightState === 'pre') {
             _flightState = 'airborne';
@@ -4146,16 +4146,16 @@ function resetTzOffset() {
 </script>
 """
 
-    # ── FUEL & WEIGHTS OVERLAY ────────────────────────────────────────────────
+    # &#9472;&#9472; FUEL & WEIGHTS OVERLAY &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     f  = data['fuel']
     w  = data['weights']
 
-    # ── Helper: plain integer display (no zero-padding), dash if empty ────────
+    # &#9472;&#9472; Helper: plain integer display (no zero-padding), dash if empty &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     def _n(val):
         try:
             return str(int(round(float(val or 0))))
         except Exception:
-            return '—'
+            return '&mdash;'
 
     def _hhmm(val):
         """Convert HHMM string to HH:MM, return '' if zero/empty."""
@@ -4279,7 +4279,7 @@ function resetTzOffset() {
             f'</tr>'
         )
 
-    # ── Compute display values ─────────────────────────────────────────────────
+    # &#9472;&#9472; Compute display values &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     try:
         _min_plnd = int(float(f.get('min_takeoff') or 0)) + int(float(f.get('taxi_out') or 0))
     except Exception:
@@ -4372,7 +4372,7 @@ function resetTzOffset() {
     # Plan number / release
     _plan_no = g.get('plan_number', '') or data['ofp'].get('time', '') or ''
 
-    # Route for preflight ref — use atc/route_ifps, fall back to flightplan_text
+    # Route for preflight ref &mdash; use atc/route_ifps, fall back to flightplan_text
     _route_str = r.get('route_ifps', '') or r.get('route', '') or ''
     # Trim to just the route portion (between orig and dest if possible)
     if _route_str and orig_icao and dest_icao:
@@ -4390,7 +4390,7 @@ function resetTzOffset() {
     _mel = g.get('mel_cdl', '') or ''
     _remarks = g.get('remarks', '') or g.get('dx_rmk', '') or ''
 
-    # ── Alternates: separate by type ──────────────────────────────────────────
+    # &#9472;&#9472; Alternates: separate by type &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     # T/O ALTN = type 'TKOF', ALTN 1/2 = type 'DEST' in order
     alts_all  = data.get('alternate', [])
     _tkof_alt = next((x for x in alts_all if x.get('type') == 'TKOF'), None)
@@ -4417,7 +4417,7 @@ function resetTzOffset() {
     # Min planned = min_takeoff + taxi  (already computed above as _min_plnd)
     _min_plnd_disp = str(_min_plnd) if _min_plnd else ''
 
-    # LIMIT type: derive from weights — if TOW limited = TAKEOFF, else LANDING
+    # LIMIT type: derive from weights &mdash; if TOW limited = TAKEOFF, else LANDING
     try:
         _tow_v   = float(w.get('takeoff')   or 0)
         _mtow_v  = float(w.get('max_tow_struct') or w.get('max_tow') or 0)
@@ -4438,7 +4438,7 @@ function resetTzOffset() {
     except Exception:
         _temp_dev_str = _temp_raw
 
-    # ── HTML: FUEL & WEIGHTS PANEL (OFP sub-tab) ─────────────────────────────
+    # &#9472;&#9472; HTML: FUEL & WEIGHTS PANEL (OFP sub-tab) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += ("<div id='tab-fw' style='display:none;position:fixed;top:0;left:0;right:0;bottom:0;"
              "z-index:600;"
              "background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);"
@@ -4456,7 +4456,7 @@ function resetTzOffset() {
 
     html += "<div class='overlay-inner'>"
 
-    # ── Header row: ALL WEIGHTS IN LB + VIEW ALTERNATES link ─────────────────
+    # &#9472;&#9472; Header row: ALL WEIGHTS IN LB + VIEW ALTERNATES link &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += ("<div style='display:flex;align-items:baseline;justify-content:space-between;"
              "padding:8px 16px 4px 16px;'>")
     html += ("<span style='font-size:11px;font-weight:500;color:#9ec8e0;"
@@ -4481,7 +4481,7 @@ function resetTzOffset() {
              "VIEW ALTERNATES</button>")
     html += "</div>"
 
-    # ── Fuel ladder (MASTERLOG-style) + Weights side-by-side ─────────────────
+    # &#9472;&#9472; Fuel ladder (MASTERLOG-style) + Weights side-by-side &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _ch = ("font-size:10px;font-weight:600;color:#9ec8e0;letter-spacing:0.5px;"
            "text-align:right;padding:4px 0 6px 4px;border-bottom:1px solid rgba(200,230,255,0.2);"
            "font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;")
@@ -4492,12 +4492,12 @@ function resetTzOffset() {
     html += ("<div style='display:grid;grid-template-columns:1fr 1fr;"
              "padding:0 16px 10px 16px;gap:0 20px;align-items:start;'>")
 
-    # ── FUEL LADDER (LEFT) ────────────────────────────────────────────────────
+    # &#9472;&#9472; FUEL LADDER (LEFT) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     # Helpers for ladder rows
     _sans = "font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;"
     _mono = "font-family:'Courier New',Courier,monospace;"
 
-    # ── Fuel ladder row helpers — matches weights table exactly ──────────────
+    # &#9472;&#9472; Fuel ladder row helpers &mdash; matches weights table exactly &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _ldr_row_counter = [0]
     _wt_sans = "font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;"
 
@@ -4553,13 +4553,13 @@ function resetTzOffset() {
     html += "</tr></thead>"
     html += "<tbody>"
 
-    # ── PLAN ARR FUEL (top of ladder) ─────────────────────────────────────────
+    # &#9472;&#9472; PLAN ARR FUEL (top of ladder) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += _ldr_row('PLAN ARR FUEL', f.get('plan_landing',''), _paf_t, accent=True)
 
-    # ── ENRT BRN ──────────────────────────────────────────────────────────────
+    # &#9472;&#9472; ENRT BRN &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += _ldr_row(f"ENRT BRN  {dest_iata}", f.get('enroute_burn',''), f.get('t_enroute',''))
 
-    # ── Middle rungs: exactly MASTERLOG order ─────────────────────────────────
+    # &#9472;&#9472; Middle rungs: exactly MASTERLOG order &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     # Pre-process fuel_extra buckets into labelled dict (same mapping as MASTERLOG)
     _fd = {'DISP ADD': 0, 'DISP EXTRA': 0, 'MEL': 0, 'HOLD': 0, 'TANKERING': 0}
     _ft = {}  # time per label
@@ -4656,7 +4656,7 @@ function resetTzOffset() {
         html += _ldr_row(_lbl, str(_bv), _ft.get(_lbl, ''))
 
 
-    # ── T/O FUEL ──────────────────────────────────────────────────────────────
+    # &#9472;&#9472; T/O FUEL &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += _ldr_row('T/O FUEL', f.get('plan_takeoff',''), '')
     _mit_idx = _ldr_row_counter[0]; _ldr_row_counter[0] += 1
     _mit_bg = 'background:rgba(255,255,255,0.05);' if _mit_idx % 2 == 0 else 'background:rgba(255,255,255,0.02);'
@@ -4666,17 +4666,17 @@ function resetTzOffset() {
              f'<td></td>'
              '</tr>')
 
-    # ── TAXI ──────────────────────────────────────────────────────────────────
+    # &#9472;&#9472; TAXI &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += _ldr_row(f"TAXI  {orig_iata}", f.get('taxi_out',''), f.get('t_taxi',''))
 
 
-    # ── TOTAL / RLS FUEL ─────────────────────────────────────────────────────
+    # &#9472;&#9472; TOTAL / RLS FUEL &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += _ldr_row(f"RLS FUEL  {orig_iata}", f.get('plan_ramp',''), r.get('endurance',''))
 
     html += "</tbody></table>"
     html += "</div>"
 
-    # ── WEIGHTS table (RIGHT) ─────────────────────────────────────────────────
+    # &#9472;&#9472; WEIGHTS table (RIGHT) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div>"
     html += ("<div style='font-size:22px;font-weight:300;color:#ffffff;"
              "font-family:-apple-system,BlinkMacSystemFont,\"Helvetica Neue\",Arial,sans-serif;"
@@ -4699,7 +4699,7 @@ function resetTzOffset() {
 
     html += '</div>'  # end grid
 
-    # ── Preflight Reference block ─────────────────────────────────────────────
+    # &#9472;&#9472; Preflight Reference block &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += ("<style>"
              "#preflight-ref, #preflight-ref *{"
              "font-family:'Courier New',Courier,monospace !important;}"
@@ -4735,20 +4735,20 @@ function resetTzOffset() {
 
     _c  = "font-family:'Courier New',Courier,monospace !important;"
     _fs = "font-size:11.5px;color:#ffffff;line-height:1.5;"
-    # Equal symmetric padding on all three columns — no borders
+    # Equal symmetric padding on all three columns &mdash; no borders
     _td_l = f"width:33.33%;padding:0 16px 14px 0;vertical-align:top;white-space:pre-wrap;{_c}{_fs}"
     _td_c = f"width:33.33%;padding:0 16px 14px 16px;vertical-align:top;white-space:pre-wrap;{_c}{_fs}"
     _td_r = f"width:33.33%;padding:0 0 14px 16px;vertical-align:top;white-space:pre-wrap;{_c}{_fs}"
 
     html += f"<table style='width:100%;border-collapse:collapse;table-layout:fixed;'>"
 
-    # ── Row 1: IFR OFP – 1 (left)  |  blank  |  PLAN# XXXXXX (right) ──────────
+    # &#9472;&#9472; Row 1: IFR OFP &ndash; 1 (left)  |  blank  |  PLAN# XXXXXX (right) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += (f"<tr>"
              f"<td style='{_td_l}' colspan='2'>IFR OFP &ndash; 1</td>"
              f"<td style='{_td_r}'>PLAN# {_plan_no}</td>"
              f"</tr>")
 
-    # ── Row 2: DEPART / STE·ETE·FL·CI / ARRIVE ───────────────────────────────
+    # &#9472;&#9472; Row 2: DEPART / STE&middot;ETE&middot;FL&middot;CI / ARRIVE &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _dep_block = (f"DEPART:   {_dep_z}\n"
                   f"{orig_icao}/{orig_iata}  {_dep_loc_hhmm}L\n"
                   f"{_elev(orig_elev)}")
@@ -4764,7 +4764,7 @@ function resetTzOffset() {
              f"<td style='{_td_r}'>{_arr_block}</td>"
              f"</tr>")
 
-    # ── Row 3: ATOG/TOW/LIMIT | MIN PLANNED/TAKEOFF/ARR FUEL | WIND/TEMP ──────
+    # &#9472;&#9472; Row 3: ATOG/TOW/LIMIT | MIN PLANNED/TAKEOFF/ARR FUEL | WIND/TEMP &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _left3  = (f"ATOG: {_atog_str}\n"
                f" TOW: {_tow_str}\n"
                f"LIMIT: {_limit}")
@@ -4779,7 +4779,7 @@ function resetTzOffset() {
              f"<td style='{_td_r}'>{_right3}</td>"
              f"</tr>")
 
-    # ── Row 4: T/O ALTN | ALTN 1 | ALTN 2 ───────────────────────────────────
+    # &#9472;&#9472; Row 4: T/O ALTN | ALTN 1 | ALTN 2 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _toa_block   = f"T/O ALTN: {_toa_icao}\n    FUEL: {_toa_fuel}"
     _altn1_block = f"ALTN 1: {_altn1_icao}\n  FUEL: {_altn1_fuel}"
     _altn2_block = f"ALTN 2: {_altn2_icao}\n  FUEL: {_altn2_fuel}"
@@ -4791,7 +4791,7 @@ function resetTzOffset() {
 
     html += "</table>"
 
-    # ── ROUTE, REMARKS, MEL/CDL — full-width, each with blank-line gap above ──
+    # &#9472;&#9472; ROUTE, REMARKS, MEL/CDL &mdash; full-width, each with blank-line gap above &#9472;&#9472;
     _div_style = f"style='{_c}{_fs}margin-top:2px;white-space:pre-wrap;word-break:break-all;'"
     html += (f"<div {_div_style}>"
              f"ROUTE:\n{_route_str_clean}"
@@ -4809,7 +4809,7 @@ function resetTzOffset() {
     html += "</div>"  # overlay-inner
     html += "</div>"  # tab-fw
 
-    # ── FLIGHTBOX ─────────────────────────────────────────────────────────────
+    # &#9472;&#9472; FLIGHTBOX &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _tab_overlay_style = ('display:none;position:fixed;top:0;left:0;right:0;bottom:0;'
                           'z-index:600;'
                           'background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);'
@@ -4826,14 +4826,14 @@ function resetTzOffset() {
     _fb_wb      = next((f for f in _fb_matched if f['doc_type'] == 'WB'),  None)
     _fb_extra   = [f for f in _fb_matched if f['doc_type'] not in ('RLS','WB')]
 
-    # Build attachment list — local matched docs first, then SimBrief fallback
+    # Build attachment list &mdash; local matched docs first, then SimBrief fallback
     _fb_attachments = []
-    if _fb_rls:  _fb_attachments.append({'label':'Operational Flt Release', 'short':'Operational Flt…', 'doc': _fb_rls,  'uri': _fb_rls['data_uri'],  'ext':'local'})
-    if _fb_wb:   _fb_attachments.append({'label':'Takeoff Landing Data',    'short':'Takeoff Landing…','doc': _fb_wb,   'uri': _fb_wb['data_uri'],   'ext':'local'})
+    if _fb_rls:  _fb_attachments.append({'label':'Operational Flt Release', 'short':'Operational Flt&hellip;', 'doc': _fb_rls,  'uri': _fb_rls['data_uri'],  'ext':'local'})
+    if _fb_wb:   _fb_attachments.append({'label':'Takeoff Landing Data',    'short':'Takeoff Landing&hellip;','doc': _fb_wb,   'uri': _fb_wb['data_uri'],   'ext':'local'})
     for xf in _fb_extra:
-        _fb_attachments.append({'label': xf['name'], 'short': xf['name'][:18]+'…', 'doc': xf, 'uri': xf['data_uri'], 'ext':'local'})
+        _fb_attachments.append({'label': xf['name'], 'short': xf['name'][:18]+'&hellip;', 'doc': xf, 'uri': xf['data_uri'], 'ext':'local'})
     for sf in _fb_sb_links:
-        _fb_attachments.append({'label': sf['name'], 'short': sf['name'][:18]+'…', 'doc': None, 'uri': sf['link'], 'ext':'remote'})
+        _fb_attachments.append({'label': sf['name'], 'short': sf['name'][:18]+'&hellip;', 'doc': None, 'uri': sf['link'], 'ext':'remote'})
 
     # Build JS array of attachments for the viewer
     import json as _json
@@ -4850,7 +4850,7 @@ function resetTzOffset() {
     html += "<div class='overlay-inner'>"
     html += """
 <style>
-/* ── FlightBox styles ── */
+/* &#9472;&#9472; FlightBox styles &#9472;&#9472; */
 #fb-search-bar {
   display:flex; align-items:center; gap:8px;
   margin:10px 14px 0; gap:8px;
@@ -4913,13 +4913,13 @@ function resetTzOffset() {
 </style>
 """
 
-    # ── Search bar ────────────────────────────────────────────────────────────
+    # &#9472;&#9472; Search bar &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += ("<div id='fb-search-bar'>"
-             "<input id='fb-search-input' type='search' placeholder='Search…'>"
+             "<input id='fb-search-input' type='search' placeholder='Search&hellip;'>"
              "<button class='fb-mark-btn'>MARK ALL<br>AS READ</button>"
              "</div>")
 
-    # ── Messages section ──────────────────────────────────────────────────────
+    # &#9472;&#9472; Messages section &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='fb-section-title'>Messages</div>"
     html += "<div id='fb-messages'>"
 
@@ -4950,7 +4950,7 @@ function resetTzOffset() {
 
     html += "</div>"  # fb-messages
 
-    # ── Attachments section ───────────────────────────────────────────────────
+    # &#9472;&#9472; Attachments section &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='fb-section-title'>Attachments</div>"
 
     if not _fb_attachments:
@@ -5010,7 +5010,7 @@ function resetTzOffset() {
 
 
 
-    # ── JOURNEY LOG PANEL (OFP sub-tab) ──────────────────────────────────────
+    # &#9472;&#9472; JOURNEY LOG PANEL (OFP sub-tab) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += f"<div id='tab-journeylog' style='{_tab_overlay_style}'>"
     html += "<div class='overlay-inner'>"
     html += ("<div style='padding:20px 16px 8px;'>"
@@ -5052,7 +5052,7 @@ function resetTzOffset() {
     html += "</div>"  # overlay-inner
     html += "</div>"  # tab-journeylog
 
-    # ── EXTRA INFO PANEL (OFP sub-tab) ────────────────────────────────────────
+    # &#9472;&#9472; EXTRA INFO PANEL (OFP sub-tab) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += f"<div id='tab-extrainfo' style='{_tab_overlay_style}'>"
     html += "<div class='overlay-inner'>"
     html += ("<div style='padding:20px 16px 8px;'>"
@@ -5109,7 +5109,7 @@ function resetTzOffset() {
     html += "</div>"  # overlay-inner
     html += "</div>"  # tab-extrainfo
 
-    # ── ATC FLIGHT PLAN TAB PANEL (BRIEFING section) ─────────────────────────
+    # &#9472;&#9472; ATC FLIGHT PLAN TAB PANEL (BRIEFING section) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _atc_style = ('display:none;position:fixed;top:0;left:0;right:0;bottom:0;'
                   'z-index:600;background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);'
                   'overflow-y:auto;-webkit-overflow-scrolling:touch;'
@@ -5150,7 +5150,7 @@ function resetTzOffset() {
         s = f"<div style='display:grid;grid-template-columns:{'1fr '*len(cols)};gap:12px;margin-bottom:14px;'>"
         for lbl, val in cols:
             s += (f"<div><div style='{_lbl}'>{lbl}</div>"
-                  f"<div style='{_val}'>{val or '—'}</div></div>")
+                  f"<div style='{_val}'>{val or '&mdash;'}</div></div>")
         s += "</div>"
         return s
 
@@ -5159,10 +5159,10 @@ function resetTzOffset() {
     _eet_raw  = r.get('eet_atc', '0000').zfill(4)  # pad to at least 4 chars
     _eet_h    = int(_eet_raw[:2] or 0)
     _eet_m    = int(_eet_raw[2:4] or 0)
-    _eet_disp = f"{_eet_h}h {_eet_m:02d}m" if (_eet_h or _eet_m) else '—'
+    _eet_disp = f"{_eet_h}h {_eet_m:02d}m" if (_eet_h or _eet_m) else '&mdash;'
     _alts     = data.get('alternate', [])
-    _alt1     = _alts[0]['icao'] if len(_alts) > 0 else '—'
-    _alt2     = _alts[1]['icao'] if len(_alts) > 1 else '—'
+    _alt1     = _alts[0]['icao'] if len(_alts) > 0 else '&mdash;'
+    _alt2     = _alts[1]['icao'] if len(_alts) > 1 else '&mdash;'
 
     html += f"<div style='{_card}'>"
     html += _atc_row([("ATC ID", _atc_id), ("RULES", r.get('flight_rules','I')), ("TYPE OF FLIGHT", r.get('flight_type','S'))])
@@ -5173,7 +5173,7 @@ function resetTzOffset() {
     html += (f"<div style='{_lbl}margin-bottom:6px;'>ROUTE</div>"
              f"<div style='background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;"
              f"font-family:monospace;font-size:13px;color:#d8f0ff;line-height:1.6;"
-             f"word-break:break-all;margin-bottom:14px;'>{_atc_route_text or '—'}</div>")
+             f"word-break:break-all;margin-bottom:14px;'>{_atc_route_text or '&mdash;'}</div>")
 
     html += _atc_row([("DEST", a['destination']['icao']), ("EET", _eet_disp), ("ALT 1", _alt1), ("ALT 2", _alt2)])
 
@@ -5185,14 +5185,14 @@ function resetTzOffset() {
                  f"font-family:monospace;font-size:11px;color:#d8f0ff;line-height:1.7;"
                  f"word-break:break-all;margin-bottom:14px;'>{_other}</div>")
 
-    html += _atc_row([("ENDURANCE", r.get('endurance','') or '—'), ("POB", r.get('pob','') or g.get('passengers','') or '—')])
+    html += _atc_row([("ENDURANCE", r.get('endurance','') or '&mdash;'), ("POB", r.get('pob','') or g.get('passengers','') or '&mdash;')])
     html += "</div>"  # card
 
     html += "</div>"  # overlay-inner
     html += "</div>"  # tab-atc
 
 
-    # ── SIGN OVERLAY ─────────────────────────────────────────────────────────
+    # &#9472;&#9472; SIGN OVERLAY &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _sign_cpt   = _captain_name
     _sign_dx    = (c.get('dx')  or '').strip().upper()
     _sign_rls   = data['ofp'].get('time', '1')
@@ -5304,13 +5304,13 @@ function resetTzOffset() {
 
     # CSS for realistic sign page
 
-    # Header + tabs (sticky) — no duplicate flight info, real top-bar is always visible above
-    # ── OFP panel ────────────────────────────────────────────────────────────
+    # Header + tabs (sticky) &mdash; no duplicate flight info, real top-bar is always visible above
+    # &#9472;&#9472; OFP panel &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _so_html += "<div class='spanel active' id='spanel-ofp' style='padding:18px 16px 32px 16px;'>"
 
     # Legal document block
     _so_html += ("<div class='legal-block'>"
-        "<div class='legal-title'>Operational Flight Plan — Release Authorization</div>"
+        "<div class='legal-title'>Operational Flight Plan &mdash; Release Authorization</div>"
         "BY SIGNATURE THE AIRCRAFT DISPATCHER AND THE CAPTAIN BOTH BELIEVE THAT THE FLIGHT CAN BE MADE WITH SAFETY."
         "<div class='legal-parties'>"
         f"<div class='party-row'>"
@@ -5355,7 +5355,7 @@ function resetTzOffset() {
         "<div id='ofp-signed-area' style='display:none;'></div>"
         "</div>")
 
-    # ── FFD panel ────────────────────────────────────────────────────────────
+    # &#9472;&#9472; FFD panel &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     _so_html += "<div class='spanel' id='spanel-ffd' style='padding:18px 16px 32px 16px;'>"
 
     _so_html += ("<div class='legal-block'>"
@@ -5401,11 +5401,11 @@ function resetTzOffset() {
     _so_html += "</div>"  # overlay-inner
     _so_html += "</div>"  # close sign-overlay div
 
-    # JS — includes signature canvas drawing logic
+    # JS &mdash; includes signature canvas drawing logic
 
     html += _so_html
 
-    # ── SETTINGS OVERLAY ─────────────────────────────────────────────────────
+    # &#9472;&#9472; SETTINGS OVERLAY &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += """
 <div id='settings-overlay' style='display:none;position:fixed;top:0;left:0;right:0;bottom:0;
   z-index:1250;background:rgba(8,28,42,0.97);overflow-y:auto;padding-top:calc(var(--topbar-h,88px) + var(--banner-h,0px));'>
@@ -5451,7 +5451,7 @@ function resetTzOffset() {
 
     html += """
 <script>
-// ── Section & Tab system ──────────────────────────────────────────────────
+// &#9472;&#9472; Section & Tab system &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 // Each bottom-nav section has its own set of top tabs
 var _activeSection = 'briefing';
 var _activeTab = 'overview';
@@ -5601,7 +5601,7 @@ function saveJourneyLog() {
         });
         localStorage.setItem('av_journey_log', JSON.stringify(data));
         var btn = document.querySelector('#tab-journeylog button');
-        if (btn) { btn.textContent = '✓ Saved'; setTimeout(function(){ btn.innerHTML = '&#10003; Save Journey Log'; }, 2000); }
+        if (btn) { btn.textContent = '&#10003; Saved'; setTimeout(function(){ btn.innerHTML = '&#10003; Save Journey Log'; }, 2000); }
     } catch(e) {}
 }
 
@@ -5631,7 +5631,7 @@ document.addEventListener('DOMContentLoaded', function() {
     switchSection('briefing');
     restoreJourneyLog();
 
-    // ── iOS keyboard fix ──────────────────────────────────────────────────
+    // &#9472;&#9472; iOS keyboard fix &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     // iOS Safari: inputs inside position:fixed + overflow-y:auto panels
     // do not receive focus/keyboard reliably. The scroll container eats the
     // touch before it reaches the input. We fix this in two ways:
@@ -5667,7 +5667,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (m.type === 'attributes' && m.attributeName === 'style') {
                 var el = m.target;
                 if (el.style && el.style.display !== 'none') {
-                    // Panel just became visible — wire up any new inputs inside it
+                    // Panel just became visible &mdash; wire up any new inputs inside it
                     setTimeout(function() { _iosFixInputs(el); }, 50);
                 }
             }
@@ -5710,22 +5710,22 @@ document.addEventListener('DOMContentLoaded', function() {
     <div id="wp-weights-lbl">ALL WEIGHTS IN LB</div>
     <div class="wp-cols">
       <div class="wp-col">
-        <label>PLND FL</label><div class="wp-plnd-val" id="wp-p-alt">—</div>
-        <label>ACTUAL FL</label><input type="text" id="wp-a-alt" maxlength="5" placeholder="—">
+        <label>PLND FL</label><div class="wp-plnd-val" id="wp-p-alt">&mdash;</div>
+        <label>ACTUAL FL</label><input type="text" id="wp-a-alt" maxlength="5" placeholder="&mdash;">
       </div>
       <div class="wp-col">
-        <label>PLND TIME</label><div class="wp-plnd-val" id="wp-p-et">—</div>
-        <label>ACTUAL TIME</label><input type="text" id="wp-a-et" maxlength="5" placeholder="—">
+        <label>PLND TIME</label><div class="wp-plnd-val" id="wp-p-et">&mdash;</div>
+        <label>ACTUAL TIME</label><input type="text" id="wp-a-et" maxlength="5" placeholder="&mdash;">
       </div>
       <div class="wp-col">
-        <label>PLND FUEL</label><div class="wp-plnd-val" id="wp-p-fuel">—</div>
-        <label>ACTUAL FUEL</label><input type="text" id="wp-a-fuel" maxlength="7" placeholder="—" oninput="wpCheckFuelWarn()">
+        <label>PLND FUEL</label><div class="wp-plnd-val" id="wp-p-fuel">&mdash;</div>
+        <label>ACTUAL FUEL</label><input type="text" id="wp-a-fuel" maxlength="7" placeholder="&mdash;" oninput="wpCheckFuelWarn()">
       </div>
     </div>
     <div id="wp-fuel-warn"></div>
     <div class="wp-next">
       <label>EST TIME AT NEXT WP</label>
-      <input type="text" id="wp-next-et" maxlength="5" placeholder="—">
+      <input type="text" id="wp-next-et" maxlength="5" placeholder="&mdash;">
     </div>
     <div class="wp-btns">
       <button class="wp-btn-cancel" onclick="closeWp()">CANCEL</button>

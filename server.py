@@ -20,9 +20,9 @@ def _import_aviobook():
 
 try:
     _av = _import_aviobook()
-    print("  \u2714  Aviobook.py loaded")
+    print("  ✔  Aviobook.py loaded")
 except Exception as e:
-    print(f"  \u2718  Could not load Aviobook.py: {e}")
+    print(f"  ✘  Could not load Aviobook.py: {e}")
     sys.exit(1)
 
 _store = {
@@ -40,13 +40,13 @@ def _build_launcher():
     for e in _store["archive"]:
         rows += (
             "<a class='fl-row' href='/ofp/" + str(e["id"]) + "'>"
-            "<div class='fl-route'>" + e["orig"] + " \u2192 " + e["dest"] + " &nbsp; " + e["flight"] + "</div>"
+            "<div class='fl-route'>" + e["orig"] + " → " + e["dest"] + " &nbsp; " + e["flight"] + "</div>"
             "<div class='fl-meta'>" + e["date"] + " " + e["time"] + "Z</div>"
-            "<div class='fl-chev'>\u203a</div>"
+            "<div class='fl-chev'>›</div>"
             "</a>\n"
         )
     if not rows:
-        rows = "<div class='empty'>No flights yet \u2014 load an OFP to begin.</div>"
+        rows = "<div class='empty'>No flights yet — load an OFP to begin.</div>"
 
     has_current = "true" if _store["current_ofp"] else "false"
 
@@ -138,7 +138,7 @@ def _build_launcher():
         "    </div>\n"
         "    <button class='login-btn' id='login-btn' onclick='doLoad()'>Load OFP</button>\n"
         "    <div class='login-error' id='login-error'>Username not found or no active flight plan.</div>\n"
-        "    <div class='login-spinner' id='login-spinner'>Loading flight plan\u2026</div>\n"
+        "    <div class='login-spinner' id='login-spinner'>Loading flight plan…</div>\n"
         "  </div>\n"
         "</div>\n"
         "<div id='archive-section' style='display:none'>\n"
@@ -152,11 +152,10 @@ def _build_launcher():
         "function init() {\n"
         "  var saved = localStorage.getItem('av_username');\n"
         "  if (saved) {\n"
-        "    document.getElementById('sb-username').value = saved;\n"
-        "    _remember = true;\n"
-        "    document.getElementById('remember-toggle').classList.add('on');\n"
         "    document.getElementById('header-user').textContent = saved.toUpperCase();\n"
         "    document.getElementById('signout-btn').style.display = '';\n"
+        "    _remember = true;\n"
+        "    document.getElementById('remember-toggle').classList.add('on');\n"
         "  }\n"
         "  var arc = document.getElementById('archive-section');\n"
         "  if (arc && arc.querySelectorAll('.fl-row').length > 0) arc.style.display = 'block';\n"
@@ -176,6 +175,8 @@ def _build_launcher():
         "  document.getElementById('remember-toggle').classList.remove('on');\n"
         "  document.getElementById('signout-btn').style.display = 'none';\n"
         "  document.getElementById('header-user').textContent = 'FLIGHT PLANNING';\n"
+        "  document.getElementById('login-wrap').style.display = 'flex';\n"
+        "  document.getElementById('archive-section').style.display = 'none';\n"
         "}\n"
         "\n"
         "function doLoad() {\n"
@@ -232,18 +233,47 @@ def serve_ofp():
             "<style>body{background:#0d1f30;color:#4da8da;font-family:sans-serif;"
             "display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}</style>"
             "</head><body><script>window.location.replace('/');</script>"
-            "<p>Redirecting\u2026</p></body></html>",
+            "<p>Redirecting…</p></body></html>",
             mimetype="text/html"
         )
-    return Response(_store["current_ofp"], mimetype="text/html")
+    # Inject a home button into the OFP HTML
+    ofp_html = _store["current_ofp"]
+    home_button = (
+        "<div style='position:fixed;top:20px;right:20px;z-index:10000;'>"
+        "<button onclick=\"if(confirm('Return to home?')) { fetch('/clear-ofp', {method:'POST'}).then(() => window.location.href='/'); }\" "
+        "style='background:#1a6a9a;color:#fff;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;"
+        "font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;font-family:inherit;'>"
+        "← Home</button></div>"
+    )
+    # Insert button before closing body tag
+    if "</body>" in ofp_html:
+        ofp_html = ofp_html.replace("</body>", home_button + "</body>")
+    return Response(ofp_html, mimetype="text/html")
 
 
 @app.route("/ofp/<int:flight_id>")
 def serve_archived_ofp(flight_id):
     for entry in _store["archive"]:
         if entry["id"] == flight_id:
-            return Response(entry["html"], mimetype="text/html")
+            ofp_html = entry["html"]
+            home_button = (
+                "<div style='position:fixed;top:20px;right:20px;z-index:10000;'>"
+                "<button onclick=\"window.location.href='/';\" "
+                "style='background:#1a6a9a;color:#fff;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;"
+                "font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;font-family:inherit;'>"
+                "← Home</button></div>"
+            )
+            if "</body>" in ofp_html:
+                ofp_html = ofp_html.replace("</body>", home_button + "</body>")
+            return Response(ofp_html, mimetype="text/html")
     return "Flight not found", 404
+
+
+@app.route("/clear-ofp", methods=["POST"])
+def clear_ofp():
+    """Clear the current OFP when user returns home"""
+    _store["current_ofp"] = None
+    return jsonify({"ok": True})
 
 
 @app.route("/generate", methods=["POST"])
@@ -256,7 +286,7 @@ def generate():
         if not username:
             return "username required", 400
 
-        print(f"  \u2708  Fetching OFP for: {username}")
+        print(f"  ✈  Fetching OFP for: {username}")
         xml_data = _av.fetch_xml_from_api(username)
         data     = _av.parse_simbrief_xml(xml_data)
 
@@ -297,12 +327,12 @@ def generate():
             _store["archive"].insert(0, entry)
             _store["next_id"] += 1
 
-        print(f"  \u2714  OFP generated ({len(html):,} bytes) \u2014 {orig}\u2192{dest} {flt}")
+        print(f"  ✔  OFP generated ({len(html):,} bytes) — {orig}→{dest} {flt}")
         return jsonify({"ok": True, "ofp_url": "/ofp"})
 
     except Exception as e:
         import traceback
-        print(f"  \u2718  {traceback.format_exc()}")
+        print(f"  ✘  {traceback.format_exc()}")
         return f"Error: {e}", 500
 
 
