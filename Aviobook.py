@@ -2141,7 +2141,7 @@ window.addEventListener('load', function() {
 
     # ── RIGHT icons — vertically centered across both rows ────────────────────
     html += "<div class='top-bar-icons'>"
-    html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"aviobook_launcher.html\"' title='Back to Launcher' "
+    html += ("<button class='top-bar-icon-btn' onclick='(function(){var l=window.location;if(l.protocol===\"file:\"){var p=l.pathname.split(\"/\");p[p.length-1]=\"aviobook_launcher.html\";window.location.href=l.protocol+\"//\"+p.join(\"/\");}else{window.location.href=\"aviobook_launcher.html\";}})()' title='Back to Launcher' "
              "style='font-size:15px;'>&#8962;</button>")   # ⌂ home
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='if(window.openSign)openSign()' title='Sign OFP'>"
              "&#9998;</button>")    # ✎ pencil
@@ -3837,7 +3837,22 @@ function clearSig(id) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function _genSubId(){var c='0123456789ABCDEF',s='';[8,4,4,4,12].forEach(function(n,i){if(i>0)s+='-';for(var j=0;j<n;j++)s+=c[Math.floor(Math.random()*16)];});return s;}
+function _genSubId(name,id){
+  // Deterministic token: signer + flight + release type + date (UTC day)
+  // Same person signing same flight on same day always gets same token
+  var raw = (name||'').toUpperCase().replace(/\s+/g,'')
+            + '|' + FLIGHT_KEY
+            + '|' + id.toUpperCase()
+            + '|' + new Date().toISOString().slice(0,10);
+  // Simple but stable 32-bit hash (djb2 variant)
+  var h = 5381;
+  for(var i=0;i<raw.length;i++){ h = ((h<<5)+h) ^ raw.charCodeAt(i); h = h>>>0; }
+  // Format as XXXXXXXX-XXXX-XXXX where X is base36 uppercase, padded
+  var p1 = h.toString(16).toUpperCase().padStart(8,'0');
+  var p2 = (raw.length*31+7).toString(16).toUpperCase().padStart(4,'0');
+  var p3 = (raw.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0)%65536).toString(16).toUpperCase().padStart(4,'0');
+  return p1+'-'+p2+'-'+p3;
+}
 function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
 function openSign(){document.getElementById('sign-overlay').style.display='block';document.body.style.overflow='hidden';restoreSignedState();setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);}
 window.openSign = openSign;
@@ -3877,7 +3892,7 @@ function submitSign(id){
     setTimeout(function(){if(wrap){wrap.style.borderColor='';wrap.style.boxShadow='';}},2000);
     return;
   }
-  var ts=_nowLabel(),subId=_genSubId();
+  var ts=_nowLabel(),subId=_genSubId(name,id);
   _signed[id]={ts:ts,subId:subId,unix:Date.now(),name:name,cert:cert};
   try{localStorage.setItem(FLIGHT_KEY+'_sign_'+id,JSON.stringify(_signed[id]));}catch(e){}
   _markSigned(id,ts,subId);
