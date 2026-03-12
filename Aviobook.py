@@ -3900,7 +3900,7 @@ function _markSigned(id,ts,subId){
       +"</div>"
       +"<div class='signed-ts'>"+ts+"</div>"
       +(id==='ofp'?"<div class='signed-id'>SUB ID: "+subId+"</div>":"")
-      +"<button onclick=\"unsign('"+id+"')\" style='margin-top:10px;background:transparent;"
+      +"<button data-sid="+id+" onclick='unsign(this.dataset.sid)' style='margin-top:10px;background:transparent;"
       +"color:#e07070;border:1px solid rgba(220,80,80,0.4);border-radius:5px;"
       +"padding:6px 14px;font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;"
       +"text-transform:uppercase;font-family:inherit;'>&#8635; Unsign</button>"
