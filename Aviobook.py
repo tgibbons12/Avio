@@ -3753,6 +3753,216 @@ window.addEventListener('load', function() {
     });
     renderPinnedBar();
 });
+
+// ── Sign overlay JS ─────────────────────────────────────────────────────
+var _signed={};
+var _sigDrawing={ofp:false,ffd:false};
+var _sigHasData={ofp:false,ffd:false};
+
+// ── Signature canvas init ─────────────────────────────────────────────────
+function _initCanvas(id) {
+  var canvas = document.getElementById(id+'-sig-canvas');
+  if (!canvas) return;
+  var wrap = document.getElementById(id+'-canvas-wrap');
+  var ph = document.getElementById(id+'-sig-placeholder');
+  var st = document.getElementById(id+'-sig-status');
+
+  // Size canvas to actual pixel width
+  function resizeCanvas() {
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width  = canvas.offsetWidth  * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#7ac4e8';
+    ctx.lineWidth   = 2.2;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+  resizeCanvas();
+
+  function getPos(e) {
+    var r = canvas.getBoundingClientRect();
+    var src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+
+  var ctx = canvas.getContext('2d');
+  var drawing = false, lastPos = null;
+
+  function startDraw(e) {
+    drawing = true;
+    lastPos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.x, lastPos.y);
+    e.preventDefault();
+  }
+  function moveDraw(e) {
+    if (!drawing) return;
+    var pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    lastPos = pos;
+    if (!_sigHasData[id]) {
+      _sigHasData[id] = true;
+      if (ph) ph.style.opacity = '0';
+      if (wrap) wrap.classList.add('has-sig');
+      if (st) st.textContent = 'Signature captured';
+    }
+    e.preventDefault();
+  }
+  function endDraw(e) { drawing = false; e.preventDefault(); }
+
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  moveDraw);
+  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', startDraw, {passive:false});
+  canvas.addEventListener('touchmove',  moveDraw,  {passive:false});
+  canvas.addEventListener('touchend',   endDraw,   {passive:false});
+}
+
+function clearSig(id) {
+  var canvas = document.getElementById(id+'-sig-canvas');
+  if (!canvas) return;
+  var dpr = window.devicePixelRatio || 1;
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  _sigHasData[id] = false;
+  var ph = document.getElementById(id+'-sig-placeholder');
+  var wrap = document.getElementById(id+'-canvas-wrap');
+  var st = document.getElementById(id+'-sig-status');
+  if (ph) ph.style.opacity = '';
+  if (wrap) wrap.classList.remove('has-sig');
+  if (st) st.textContent = '';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function _genSubId(){var c='0123456789ABCDEF',s='';[8,4,4,4,12].forEach(function(n,i){if(i>0)s+='-';for(var j=0;j<n;j++)s+=c[Math.floor(Math.random()*16)];});return s;}
+function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
+function openSign(){document.getElementById('sign-overlay').style.display='block';document.body.style.overflow='hidden';restoreSignedState();setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);}
+window.openSign = openSign;
+window.closeSign = closeSign;
+function closeSign(){document.getElementById('sign-overlay').style.display='none';document.body.style.overflow='';}
+function signTab(id){
+  ['ofp','ffd'].forEach(function(t){
+    document.getElementById('stab-'+t).classList.toggle('active',t===id);
+    document.getElementById('spanel-'+t).classList.toggle('active',t===id);
+  });
+  // Re-init canvas in case it was hidden on first load
+  setTimeout(function(){_initCanvas(id);},30);
+}
+
+// ── Submit sign ────────────────────────────────────────────────────────────
+function submitSign(id){
+  var nameEl=document.getElementById(id+'-name');
+  var certEl=document.getElementById(id+'-cert');
+  var name=nameEl?nameEl.value.trim():'';
+  var cert=certEl?certEl.value.trim():'';
+  // Validate name
+  if(!name){
+    nameEl.classList.add('error');nameEl.focus();
+    setTimeout(function(){nameEl.classList.remove('error');},2000);
+    return;
+  }
+  // Validate cert
+  if(!cert){
+    certEl.classList.add('error');certEl.focus();
+    setTimeout(function(){certEl.classList.remove('error');},2000);
+    return;
+  }
+  // Validate signature
+  if(!_sigHasData[id]){
+    var wrap=document.getElementById(id+'-canvas-wrap');
+    if(wrap){wrap.style.borderColor='rgba(220,80,80,0.6)';wrap.style.boxShadow='0 0 0 3px rgba(220,80,80,0.08)';}
+    setTimeout(function(){if(wrap){wrap.style.borderColor='';wrap.style.boxShadow='';}},2000);
+    return;
+  }
+  var ts=_nowLabel(),subId=_genSubId();
+  _signed[id]={ts:ts,subId:subId,unix:Date.now(),name:name,cert:cert};
+  try{localStorage.setItem(FLIGHT_KEY+'_sign_'+id,JSON.stringify(_signed[id]));}catch(e){}
+  _markSigned(id,ts,subId);
+  _checkBothSigned();
+}
+
+function _markSigned(id,ts,subId){
+  // Replace form with confirmation block
+  var area=document.getElementById(id+'-signed-area');
+  var btn=document.getElementById(id+'-sign-btn');
+  var form=btn?btn.parentElement:null;
+  if(btn)btn.style.display='none';
+  if(area){
+    area.style.display='block';
+    area.innerHTML=
+      "<div class='signed-confirm'>"
+      +"<div class='signed-check'>&#10003;</div>"
+      +"<div style='color:#4cdf8a;font-size:14px;font-weight:700;letter-spacing:0.5px;'>"
+      +(id==='ofp'?'OFP Release Accepted':'Fit for Duty Confirmed')
+      +"</div>"
+      +"<div class='signed-ts'>"+ts+"</div>"
+      +(id==='ofp'?"<div class='signed-id'>SUB ID: "+subId+"</div>":"")
+      +"<button onclick='unsign(\""+id+"\")' style='margin-top:10px;background:transparent;"
+      +"color:#e07070;border:1px solid rgba(220,80,80,0.4);border-radius:5px;"
+      +"padding:6px 14px;font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;"
+      +"text-transform:uppercase;font-family:inherit;'>&#8635; Unsign</button>"
+      +"</div>";
+  }
+  if(id==='ofp' && window._unlockNavlog) _unlockNavlog();
+}
+
+function _checkBothSigned(){
+  var ffd=_signed['ffd'],ofp=_signed['ofp'];
+  if(!ffd||!ofp)return;
+  var banners=document.getElementById('sign-banners');
+  if(banners)banners.style.display='block';
+  var fEl=document.getElementById('banner-ffd-time'),oEl=document.getElementById('banner-ofp-time'),sEl=document.getElementById('banner-sub-id');
+  if(fEl)fEl.textContent=ffd.ts;
+  if(oEl)oEl.textContent=ofp.ts;
+  if(sEl)sEl.textContent=ofp.subId;
+  var sb=document.getElementById('sign-btn');
+  if(sb){sb.style.color='#4cdf8a';sb.textContent='\\u2713 SIGNED';}
+  var remaining=(Math.min(ffd.unix,ofp.unix)+30*60*1000)-Date.now();
+  if(remaining>0)setTimeout(hideBanners,remaining);else hideBanners();
+}
+
+function _setBannerHeight(){
+  document.documentElement.style.setProperty('--banner-h','0px');
+}
+
+function hideBanners(){
+  var b=document.getElementById('sign-banners');
+  if(b)b.style.display='none';
+  document.documentElement.style.setProperty('--banner-h','0px');
+  try{localStorage.removeItem(FLIGHT_KEY+'_sign_ffd');localStorage.removeItem(FLIGHT_KEY+'_sign_ofp');}catch(e){}
+}
+
+function unsign(id){
+  delete _signed[id];
+  try{localStorage.removeItem(FLIGHT_KEY+'_sign_'+id);}catch(e){}
+  var area=document.getElementById(id+'-signed-area');
+  var btn=document.getElementById(id+'-sign-btn');
+  if(area){area.style.display='none';area.innerHTML='';}
+  if(btn)btn.style.display='';
+  if(id==='ofp'){
+    var bar=document.getElementById('nl-unsigned-bar');
+    var banner=document.getElementById('nl-rls-banner');
+    if(bar)bar.style.display='flex';
+    if(banner)banner.style.display='none';
+  }
+  var banners=document.getElementById('sign-banners');
+  if(banners)banners.style.display='none';
+  document.documentElement.style.setProperty('--banner-h','0px');
+}
+
+function restoreSignedState(){
+  try{
+    var fR=localStorage.getItem(FLIGHT_KEY+'_sign_ffd'),oR=localStorage.getItem(FLIGHT_KEY+'_sign_ofp');
+    if(fR){_signed['ffd']=JSON.parse(fR);var d=_signed['ffd'];_markSigned('ffd',d.ts,d.subId);}
+    if(oR){_signed['ofp']=JSON.parse(oR);var d=_signed['ofp'];_markSigned('ofp',d.ts,d.subId);}
+    _checkBothSigned();
+  }catch(e){}
+}
+window.addEventListener('DOMContentLoaded',restoreSignedState);
+
 </script>
 """
 
@@ -5181,215 +5391,6 @@ function resetTzOffset() {
     _so_html += "</div>"  # close sign-overlay div
 
     # JS — includes signature canvas drawing logic
-    _so_html += """<script>
-var _signed={};
-var _sigDrawing={ofp:false,ffd:false};
-var _sigHasData={ofp:false,ffd:false};
-
-// ── Signature canvas init ─────────────────────────────────────────────────
-function _initCanvas(id) {
-  var canvas = document.getElementById(id+'-sig-canvas');
-  if (!canvas) return;
-  var wrap = document.getElementById(id+'-canvas-wrap');
-  var ph = document.getElementById(id+'-sig-placeholder');
-  var st = document.getElementById(id+'-sig-status');
-
-  // Size canvas to actual pixel width
-  function resizeCanvas() {
-    var dpr = window.devicePixelRatio || 1;
-    canvas.width  = canvas.offsetWidth  * dpr;
-    canvas.height = canvas.offsetHeight * dpr;
-    var ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.strokeStyle = '#7ac4e8';
-    ctx.lineWidth   = 2.2;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-  }
-  resizeCanvas();
-
-  function getPos(e) {
-    var r = canvas.getBoundingClientRect();
-    var src = e.touches ? e.touches[0] : e;
-    return { x: src.clientX - r.left, y: src.clientY - r.top };
-  }
-
-  var ctx = canvas.getContext('2d');
-  var drawing = false, lastPos = null;
-
-  function startDraw(e) {
-    drawing = true;
-    lastPos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(lastPos.x, lastPos.y);
-    e.preventDefault();
-  }
-  function moveDraw(e) {
-    if (!drawing) return;
-    var pos = getPos(e);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastPos = pos;
-    if (!_sigHasData[id]) {
-      _sigHasData[id] = true;
-      if (ph) ph.style.opacity = '0';
-      if (wrap) wrap.classList.add('has-sig');
-      if (st) st.textContent = 'Signature captured';
-    }
-    e.preventDefault();
-  }
-  function endDraw(e) { drawing = false; e.preventDefault(); }
-
-  canvas.addEventListener('mousedown',  startDraw);
-  canvas.addEventListener('mousemove',  moveDraw);
-  canvas.addEventListener('mouseup',    endDraw);
-  canvas.addEventListener('mouseleave', endDraw);
-  canvas.addEventListener('touchstart', startDraw, {passive:false});
-  canvas.addEventListener('touchmove',  moveDraw,  {passive:false});
-  canvas.addEventListener('touchend',   endDraw,   {passive:false});
-}
-
-function clearSig(id) {
-  var canvas = document.getElementById(id+'-sig-canvas');
-  if (!canvas) return;
-  var dpr = window.devicePixelRatio || 1;
-  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-  _sigHasData[id] = false;
-  var ph = document.getElementById(id+'-sig-placeholder');
-  var wrap = document.getElementById(id+'-canvas-wrap');
-  var st = document.getElementById(id+'-sig-status');
-  if (ph) ph.style.opacity = '';
-  if (wrap) wrap.classList.remove('has-sig');
-  if (st) st.textContent = '';
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function _genSubId(){var c='0123456789ABCDEF',s='';[8,4,4,4,12].forEach(function(n,i){if(i>0)s+='-';for(var j=0;j<n;j++)s+=c[Math.floor(Math.random()*16)];});return s;}
-function _nowLabel(){var d=_simNow(),mo=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],dd=String(d.getUTCDate()).padStart(2,'0'),hh=String(d.getUTCHours()).padStart(2,'0'),mm=String(d.getUTCMinutes()).padStart(2,'0');return mo[d.getUTCMonth()]+' '+dd+', '+d.getUTCFullYear()+' — '+hh+':'+mm+'Z';}
-function openSign(){document.getElementById('sign-overlay').style.display='block';document.body.style.overflow='hidden';restoreSignedState();setTimeout(function(){_initCanvas('ofp');_initCanvas('ffd');},50);}
-window.openSign = openSign;
-window.closeSign = closeSign;
-function closeSign(){document.getElementById('sign-overlay').style.display='none';document.body.style.overflow='';}
-function signTab(id){
-  ['ofp','ffd'].forEach(function(t){
-    document.getElementById('stab-'+t).classList.toggle('active',t===id);
-    document.getElementById('spanel-'+t).classList.toggle('active',t===id);
-  });
-  // Re-init canvas in case it was hidden on first load
-  setTimeout(function(){_initCanvas(id);},30);
-}
-
-// ── Submit sign ────────────────────────────────────────────────────────────
-function submitSign(id){
-  var nameEl=document.getElementById(id+'-name');
-  var certEl=document.getElementById(id+'-cert');
-  var name=nameEl?nameEl.value.trim():'';
-  var cert=certEl?certEl.value.trim():'';
-  // Validate name
-  if(!name){
-    nameEl.classList.add('error');nameEl.focus();
-    setTimeout(function(){nameEl.classList.remove('error');},2000);
-    return;
-  }
-  // Validate cert
-  if(!cert){
-    certEl.classList.add('error');certEl.focus();
-    setTimeout(function(){certEl.classList.remove('error');},2000);
-    return;
-  }
-  // Validate signature
-  if(!_sigHasData[id]){
-    var wrap=document.getElementById(id+'-canvas-wrap');
-    if(wrap){wrap.style.borderColor='rgba(220,80,80,0.6)';wrap.style.boxShadow='0 0 0 3px rgba(220,80,80,0.08)';}
-    setTimeout(function(){if(wrap){wrap.style.borderColor='';wrap.style.boxShadow='';}},2000);
-    return;
-  }
-  var ts=_nowLabel(),subId=_genSubId();
-  _signed[id]={ts:ts,subId:subId,unix:Date.now(),name:name,cert:cert};
-  try{localStorage.setItem(FLIGHT_KEY+'_sign_'+id,JSON.stringify(_signed[id]));}catch(e){}
-  _markSigned(id,ts,subId);
-  _checkBothSigned();
-}
-
-function _markSigned(id,ts,subId){
-  // Replace form with confirmation block
-  var area=document.getElementById(id+'-signed-area');
-  var btn=document.getElementById(id+'-sign-btn');
-  var form=btn?btn.parentElement:null;
-  if(btn)btn.style.display='none';
-  if(area){
-    area.style.display='block';
-    area.innerHTML=
-      "<div class='signed-confirm'>"
-      +"<div class='signed-check'>&#10003;</div>"
-      +"<div style='color:#4cdf8a;font-size:14px;font-weight:700;letter-spacing:0.5px;'>"
-      +(id==='ofp'?'OFP Release Accepted':'Fit for Duty Confirmed')
-      +"</div>"
-      +"<div class='signed-ts'>"+ts+"</div>"
-      +(id==='ofp'?"<div class='signed-id'>SUB ID: "+subId+"</div>":"")
-      +"<button onclick='unsign(\""+id+"\")' style='margin-top:10px;background:transparent;"
-      +"color:#e07070;border:1px solid rgba(220,80,80,0.4);border-radius:5px;"
-      +"padding:6px 14px;font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;"
-      +"text-transform:uppercase;font-family:inherit;'>&#8635; Unsign</button>"
-      +"</div>";
-  }
-  if(id==='ofp' && window._unlockNavlog) _unlockNavlog();
-}
-
-function _checkBothSigned(){
-  var ffd=_signed['ffd'],ofp=_signed['ofp'];
-  if(!ffd||!ofp)return;
-  var banners=document.getElementById('sign-banners');
-  if(banners)banners.style.display='block';
-  var fEl=document.getElementById('banner-ffd-time'),oEl=document.getElementById('banner-ofp-time'),sEl=document.getElementById('banner-sub-id');
-  if(fEl)fEl.textContent=ffd.ts;
-  if(oEl)oEl.textContent=ofp.ts;
-  if(sEl)sEl.textContent=ofp.subId;
-  var sb=document.getElementById('sign-btn');
-  if(sb){sb.style.color='#4cdf8a';sb.textContent='\\u2713 SIGNED';}
-  var remaining=(Math.min(ffd.unix,ofp.unix)+30*60*1000)-Date.now();
-  if(remaining>0)setTimeout(hideBanners,remaining);else hideBanners();
-}
-
-function _setBannerHeight(){
-  document.documentElement.style.setProperty('--banner-h','0px');
-}
-
-function hideBanners(){
-  var b=document.getElementById('sign-banners');
-  if(b)b.style.display='none';
-  document.documentElement.style.setProperty('--banner-h','0px');
-  try{localStorage.removeItem(FLIGHT_KEY+'_sign_ffd');localStorage.removeItem(FLIGHT_KEY+'_sign_ofp');}catch(e){}
-}
-
-function unsign(id){
-  delete _signed[id];
-  try{localStorage.removeItem(FLIGHT_KEY+'_sign_'+id);}catch(e){}
-  var area=document.getElementById(id+'-signed-area');
-  var btn=document.getElementById(id+'-sign-btn');
-  if(area){area.style.display='none';area.innerHTML='';}
-  if(btn)btn.style.display='';
-  if(id==='ofp'){
-    var bar=document.getElementById('nl-unsigned-bar');
-    var banner=document.getElementById('nl-rls-banner');
-    if(bar)bar.style.display='flex';
-    if(banner)banner.style.display='none';
-  }
-  var banners=document.getElementById('sign-banners');
-  if(banners)banners.style.display='none';
-  document.documentElement.style.setProperty('--banner-h','0px');
-}
-
-function restoreSignedState(){
-  try{
-    var fR=localStorage.getItem(FLIGHT_KEY+'_sign_ffd'),oR=localStorage.getItem(FLIGHT_KEY+'_sign_ofp');
-    if(fR){_signed['ffd']=JSON.parse(fR);var d=_signed['ffd'];_markSigned('ffd',d.ts,d.subId);}
-    if(oR){_signed['ofp']=JSON.parse(oR);var d=_signed['ofp'];_markSigned('ofp',d.ts,d.subId);}
-    _checkBothSigned();
-  }catch(e){}
-}
-window.addEventListener('DOMContentLoaded',restoreSignedState);
-</script>"""
 
     html += _so_html
 
