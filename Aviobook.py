@@ -11,7 +11,30 @@ def fetch_xml_from_api(username):
     # SimBrief accepts ?username= (pilot ID alias) or ?userid= (numeric ID).
     param = "userid" if str(username).strip().isdigit() else "username"
     url = f"https://www.simbrief.com/api/xml.fetcher.php?{param}={urllib.parse.quote(str(username).strip())}"
-    context = ssl.create_default_context()
+
+    # Build SSL context — try certifi first (Railway/Linux), then the macOS
+    # bundle installed by "Install Certificates.command", then fall back to
+    # the system default.  Never disable verification entirely.
+    def _make_ssl_context():
+        # 1. certifi (installed via pip, works everywhere including Railway)
+        try:
+            import certifi
+            return ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            pass
+        # 2. macOS: /Applications/Python 3.x/Install Certificates.command
+        #    installs certs into the Python framework's openssl store.
+        #    If that ran, create_default_context() already finds them.
+        #    But if not, the macOS system keychain is at a known path.
+        import platform, os
+        if platform.system() == "Darwin":
+            mac_cafile = "/etc/ssl/cert.pem"          # macOS system bundle
+            if os.path.exists(mac_cafile):
+                return ssl.create_default_context(cafile=mac_cafile)
+        # 3. Standard default (works on most Linux distros including Railway)
+        return ssl.create_default_context()
+
+    context = _make_ssl_context()
     try:
         with urllib.request.urlopen(url, context=context) as response:
             data = response.read()
@@ -1188,7 +1211,11 @@ def main():
     from datetime import datetime, timezone
 
     import sys as _sys
-    username = os.environ.get("SIMBRIEF_USERNAME") or (len(_sys.argv) > 1 and _sys.argv[1]) or "tgibbons"
+    username = os.environ.get("SIMBRIEF_USERNAME") or (len(_sys.argv) > 1 and _sys.argv[1]) or ""
+    if not username:
+        print("Usage: python3 Aviobook.py <simbrief_username>", file=_sys.stderr)
+        print("   or: SIMBRIEF_USERNAME=yourname python3 Aviobook.py", file=_sys.stderr)
+        _sys.exit(1)
     try:
         xml_data = fetch_xml_from_api(username)
     except RuntimeError as e:
@@ -3909,7 +3936,7 @@ function clearSig(id) {
 
 // &#9472;&#9472; Helpers &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
 function _genSubId(name,id){
-  var raw=(name||'').toUpperCase().replace(/\s+/g,'')+'\x7c'+FLIGHT_KEY+'\x7c'+id.toUpperCase()+'\x7c'+new Date().toISOString().slice(0,10);
+  var raw=(name||'').toUpperCase().replace(/\\s+/g,'')+'\x7c'+FLIGHT_KEY+'\x7c'+id.toUpperCase()+'\x7c'+new Date().toISOString().slice(0,10);
   var h=5381;for(var i=0;i<raw.length;i++){h=((h<<5)+h)^raw.charCodeAt(i);h=h>>>0;}
   var p1=h.toString(16).toUpperCase().padStart(8,'0');
   var p2=(raw.length*31+7).toString(16).toUpperCase().padStart(4,'0');
