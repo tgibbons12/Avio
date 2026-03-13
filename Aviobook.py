@@ -5196,9 +5196,9 @@ function resetTzOffset() {
       var card = document.createElement('div');
       card.className = 'fb-att-card';
       card.innerHTML =
-        '<div class="fb-att-thumb">\uD83D\uDCC4</div>' +
+        '<div class="fb-att-thumb">&#128196;</div>' +
         '<div class="fb-att-footer">' +
-          '<span class="fb-att-icon">\uD83D\uDCC4</span>' +
+          '<span class="fb-att-icon">&#128196;</span>' +
           '<span class="fb-att-name fb-att-lbl">' +
             (att.label || att.short || att.name || '') +
           '</span>' +
