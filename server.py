@@ -336,6 +336,51 @@ def generate():
         return f"Error: {e}", 500
 
 
+@app.route("/match-pdfs", methods=["POST"])
+def match_pdfs():
+    """
+    Client sends:  { filenames: [...], orig: "KLAX", dest: "YSSY", flight: "AAL1" }
+    Returns:       { matches: [ {name, score, doc_type}, ... ] }  sorted best-first
+    """
+    try:
+        req        = request.get_json(force=True)
+        filenames  = req.get("filenames", [])
+        orig_icao  = (req.get("orig") or "").strip().upper()
+        dest_icao  = (req.get("dest") or "").strip().upper()
+        flight_num = (req.get("flight") or "").strip().upper().replace(" ", "")
+
+        def score_and_type(name):
+            stem = name.upper().replace(".PDF", "")
+            doc_type = ""
+            for suffix in ("-RLS", "-WB", "-OFP", "-RELEASE", "-WEIGHTBALANCE"):
+                if stem.endswith(suffix):
+                    doc_type = suffix.lstrip("-")
+                    stem = stem[: -len(suffix)]
+                    break
+            core = stem.replace("-", "").replace("_", "").replace(" ", "")
+            pair = (orig_icao + dest_icao)
+            s = 0
+            if pair and pair in core:               s += 100
+            if flight_num and flight_num in core:   s += 60
+            elif orig_icao and orig_icao in core:   s += 20
+            if dest_icao and dest_icao in core:     s += 20
+            if doc_type in ("RLS", "WB"):           s += 10
+            return s, doc_type
+
+        results = []
+        for fname in filenames:
+            if not fname.upper().endswith(".PDF"):
+                continue
+            s, doc_type = score_and_type(fname)
+            if s > 0:
+                results.append({"name": fname, "score": s, "doc_type": doc_type})
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return jsonify({"matches": results})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/archive")
 def archive():
     slim = [{k: v for k, v in e.items() if k != "html"} for e in _store["archive"]]

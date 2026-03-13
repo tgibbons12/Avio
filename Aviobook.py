@@ -4887,27 +4887,9 @@ function resetTzOffset() {
     _fb_fltnum   = (g.get('icao_airline','') + g.get('flight_number','')).strip().upper()
     _fb_sb_links = data.get('files', [])
 
-    _fb_local   = scan_release_folder(_fb_orig, _fb_dest, _fb_fltnum, folder=release_folder)
-    _fb_matched = [f for f in _fb_local if f['score'] >= 20]
-    _fb_rls     = next((f for f in _fb_matched if f['doc_type'] == 'RLS'), None)
-    _fb_wb      = next((f for f in _fb_matched if f['doc_type'] == 'WB'),  None)
-    _fb_extra   = [f for f in _fb_matched if f['doc_type'] not in ('RLS','WB')]
 
-    # Build attachment list &mdash; local matched docs first, then SimBrief fallback
-    _fb_attachments = []
-    if _fb_rls:  _fb_attachments.append({'label':'Operational Flt Release', 'short':'Operational Flt&hellip;', 'doc': _fb_rls,  'uri': _fb_rls['data_uri'],  'ext':'local'})
-    if _fb_wb:   _fb_attachments.append({'label':'Takeoff Landing Data',    'short':'Takeoff Landing&hellip;','doc': _fb_wb,   'uri': _fb_wb['data_uri'],   'ext':'local'})
-    for xf in _fb_extra:
-        _fb_attachments.append({'label': xf['name'], 'short': xf['name'][:18]+'&hellip;', 'doc': xf, 'uri': xf['data_uri'], 'ext':'local'})
-    for sf in _fb_sb_links:
-        _fb_attachments.append({'label': sf['name'], 'short': sf['name'][:18]+'&hellip;', 'doc': None, 'uri': sf['link'], 'ext':'remote'})
-
-    # Build JS array of attachments for the viewer
+    # SimBrief remote links — passed to JS as seed attachments
     import json as _json
-    _fb_att_js = _json.dumps([
-        {'label': att['label'], 'uri': att['uri'], 'ext': att['ext']}
-        for att in _fb_attachments
-    ])
 
     # Remarks from SimBrief for the "messages" section
     _fb_disp_remarks = data.get('general', {}).get('dx_rmk', '') or ''
@@ -5017,41 +4999,193 @@ function resetTzOffset() {
 
     html += "</div>"  # fb-messages
 
-    # &#9472;&#9472; Attachments section &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-    html += "<div class='fb-section-title'>Attachments</div>"
-
-    if not _fb_attachments:
-        html += ("<div style='padding:0 14px 20px;color:#4a7a96;font-size:13px;'>"
-                 "No attachments found.</div>")
-    else:
-        html += "<div class='fb-att-grid'>"
-        for idx, att in enumerate(_fb_attachments):
-            html += (f"<div class='fb-att-card' onclick='fbOpenAtt({idx})'>"
-                     f"<div class='fb-att-thumb'>&#128196;</div>"
-                     f"<div class='fb-att-footer'>"
-                     f"<span class='fb-att-icon'>&#128196;</span>"
-                     f"<span class='fb-att-name'>{att['short']}</span>"
-                     f"</div></div>")
-        html += "</div>"
+    # ── Attachments section (dynamic — folder picker handled entirely client-side) ──
+    # SimBrief remote links are still passed as seed attachments.
+    _fb_sb_att_js = _json.dumps([
+        {'label': sf['name'], 'short': sf['name'][:28], 'uri': sf['link'], 'ext': 'remote'}
+        for sf in _fb_sb_links
+    ])
 
     html += f"""
+<div class='fb-section-title' id='fb-att-title'>Attachments</div>
+
+<!-- Folder picker bar -->
+<div id='fb-folder-bar' style='margin:0 14px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;'>
+  <button id='fb-pick-btn' onclick='fbPickFolder()'
+    style='background:linear-gradient(90deg,#1a5a8a,#1e70a8);border:none;border-radius:8px;
+           color:#fff;font-size:12px;font-weight:700;letter-spacing:.5px;padding:10px 16px;
+           cursor:pointer;text-transform:uppercase;white-space:nowrap;flex-shrink:0;'>
+    &#128193; Choose Folder
+  </button>
+  <div id='fb-folder-label'
+    style='flex:1;font-size:12px;color:#4a8aa8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;'>
+    No folder selected
+  </div>
+  <button id='fb-clear-folder-btn' onclick='fbClearFolder()'
+    style='display:none;flex-shrink:0;background:transparent;border:1px solid rgba(90,160,210,0.3);
+           border-radius:6px;color:#4a8aa8;font-size:11px;padding:6px 10px;cursor:pointer;'>
+    Clear
+  </button>
+  <!-- webkitdirectory triggers native folder picker popup -->
+  <input type='file' id='fb-folder-input' accept='.pdf' multiple
+         webkitdirectory mozdirectory directory
+         style='display:none' onchange='fbFolderSelected(this)'>
+</div>
+
+<!-- Scanning indicator -->
+<div id='fb-scan-status' style='display:none;padding:4px 14px 10px;color:#4a9ad4;font-size:12px;'></div>
+
+<!-- Attachment grid (populated by JS) -->
+<div id='fb-att-grid-wrap'>
+  <div id='fb-att-grid' class='fb-att-grid'></div>
+  <div id='fb-att-empty' style='padding:0 14px 20px;color:#4a7a96;font-size:13px;display:none;'>
+    No matching PDFs found in this folder.
+  </div>
+</div>
+
 <script>
 (function(){{
-  var ATTS = {_fb_att_js};
+  var FLIGHT_ORIG = {_json.dumps(_fb_orig)};
+  var FLIGHT_DEST = {_json.dumps(_fb_dest)};
+  var FLIGHT_NUM  = {_json.dumps(_fb_fltnum)};
+  var SB_ATTS     = {_fb_sb_att_js};
 
-  window.fbToggleMsg = function(id) {{
-    var body = document.getElementById(id);
-    var chev = document.getElementById(id+'-chev');
-    if (!body) return;
-    var open = body.style.display === 'block';
-    body.style.display = open ? 'none' : 'block';
-    if (chev) chev.innerHTML = open ? '&#8964;' : '&#8963;';
+  var _fileMap = {{}};
+  var _attList = [];
+
+  var LS_NAME_KEY = 'av_folder_name';
+
+  function _savedFolderName() {{
+    try {{ return localStorage.getItem(LS_NAME_KEY) || ''; }} catch(e) {{ return ''; }}
+  }}
+  function _saveFolderName(n) {{
+    try {{ if (n) localStorage.setItem(LS_NAME_KEY, n);
+          else   localStorage.removeItem(LS_NAME_KEY); }} catch(e) {{}}
+  }}
+
+  window.fbPickFolder = function() {{
+    document.getElementById('fb-folder-input').click();
   }};
 
-  window.fbOpenAtt = function(idx) {{
-    var att = ATTS[idx];
-    if (!att) return;
-    // Convert data URI to Blob URL so Safari can open it
+  window.fbClearFolder = function() {{
+    _fileMap = {{}};
+    _attList = [];
+    _saveFolderName('');
+    document.getElementById('fb-folder-label').textContent = 'No folder selected';
+    document.getElementById('fb-clear-folder-btn').style.display = 'none';
+    document.getElementById('fb-folder-input').value = '';
+    _renderAtts(SB_ATTS.length ? SB_ATTS : []);
+  }};
+
+  window.fbFolderSelected = function(input) {{
+    var files = Array.from(input.files || []);
+    if (!files.length) return;
+
+    var folderName = (files[0].webkitRelativePath)
+      ? files[0].webkitRelativePath.split('/')[0]
+      : files.length + ' file' + (files.length !== 1 ? 's' : '');
+
+    _fileMap = {{}};
+    files.forEach(function(f) {{
+      if (f.name.toLowerCase().endsWith('.pdf')) _fileMap[f.name] = f;
+    }});
+
+    var pdfCount = Object.keys(_fileMap).length;
+    document.getElementById('fb-folder-label').textContent =
+      folderName + ' \u2014 ' + pdfCount + ' PDF' + (pdfCount !== 1 ? 's' : '');
+    document.getElementById('fb-clear-folder-btn').style.display = '';
+    _saveFolderName(folderName);
+
+    if (!pdfCount) {{ _renderAtts(SB_ATTS.length ? SB_ATTS : []); return; }}
+    _scanAndRender(Object.keys(_fileMap));
+  }};
+
+  function _scanAndRender(pdfNames) {{
+    var status = document.getElementById('fb-scan-status');
+    status.textContent = 'Scanning\u2026';
+    status.style.display = 'block';
+
+    fetch('/match-pdfs', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{ filenames: pdfNames,
+                              orig: FLIGHT_ORIG, dest: FLIGHT_DEST, flight: FLIGHT_NUM }})
+    }})
+    .then(function(r) {{ return r.json(); }})
+    .then(function(resp) {{
+      status.style.display = 'none';
+      var matches = (resp.matches || []).filter(function(m) {{ return m.score >= 20; }});
+      if (!matches.length) {{ _renderAtts(SB_ATTS.length ? SB_ATTS : []); return; }}
+
+      var toRead  = matches.slice(0, 4);
+      var pending = toRead.length;
+      var results = new Array(toRead.length);
+
+      toRead.forEach(function(m, i) {{
+        var file = _fileMap[m.name];
+        if (!file) {{
+          results[i] = {{ label: _docLabel(m), uri: '', ext: 'local' }};
+          if (--pending === 0) _finaliseAtts(results);
+          return;
+        }}
+        var reader = new FileReader();
+        reader.onload = function(e) {{
+          results[i] = {{ label: _docLabel(m), uri: e.target.result, ext: 'local' }};
+          if (--pending === 0) _finaliseAtts(results);
+        }};
+        reader.onerror = function() {{
+          results[i] = {{ label: m.name, uri: '', ext: 'local' }};
+          if (--pending === 0) _finaliseAtts(results);
+        }};
+        reader.readAsDataURL(file);
+      }});
+    }})
+    .catch(function(err) {{
+      document.getElementById('fb-scan-status').textContent = 'Scan error: ' + err;
+    }});
+  }}
+
+  function _docLabel(m) {{
+    if (m.doc_type === 'RLS') return 'Operational Flt Release';
+    if (m.doc_type === 'WB')  return 'Takeoff Landing Data';
+    return m.name.replace(/\\.pdf$/i, '');
+  }}
+
+  function _finaliseAtts(localAtts) {{
+    _attList = localAtts.filter(function(a) {{ return a.uri; }}).concat(SB_ATTS);
+    _renderAtts(_attList);
+  }}
+
+  function _renderAtts(atts) {{
+    var grid  = document.getElementById('fb-att-grid');
+    var empty = document.getElementById('fb-att-empty');
+    grid.innerHTML = '';
+    _attList = atts;
+
+    if (!atts.length) {{ empty.style.display = ''; return; }}
+    empty.style.display = 'none';
+
+    atts.forEach(function(att) {{
+      var card = document.createElement('div');
+      card.className = 'fb-att-card';
+      card.innerHTML =
+        '<div class="fb-att-thumb">\uD83D\uDCC4</div>' +
+        '<div class="fb-att-footer">' +
+          '<span class="fb-att-icon">\uD83D\uDCC4</span>' +
+          '<span class="fb-att-name fb-att-lbl">' +
+            (att.label || att.short || att.name || '') +
+          '</span>' +
+        '</div>';
+      card.addEventListener('click', function() {{ _openAtt(att); }});
+      grid.appendChild(card);
+    }});
+
+    var si = document.getElementById('fb-search-input');
+    if (si && si.value) window.fbApplySearch(si.value);
+  }}
+
+  function _openAtt(att) {{
+    if (!att.uri) return;
     if (att.uri.indexOf('data:') === 0) {{
       try {{
         var parts  = att.uri.split(',');
@@ -5065,7 +5199,76 @@ function resetTzOffset() {
     }} else {{
       window.open(att.uri, '_blank');
     }}
+  }}
+
+  // ── Message toggle ────────────────────────────────────────────────────────
+  window.fbToggleMsg = function(id) {{
+    var body = document.getElementById(id);
+    var chev = document.getElementById(id+'-chev');
+    if (!body) return;
+    var open = body.style.display === 'block';
+    body.style.display = open ? 'none' : 'block';
+    if (chev) chev.innerHTML = open ? '&#8964;' : '&#8963;';
   }};
+
+  // ── Search / filter ───────────────────────────────────────────────────────
+  window.fbApplySearch = function(q) {{
+    q = q.toLowerCase().trim();
+
+    var msgRows = document.querySelectorAll('#fb-messages .fb-msg-row');
+    msgRows.forEach(function(row) {{
+      var m = row.getAttribute('onclick') && row.getAttribute('onclick').match(/"([^"]+)"/);
+      var body = m ? document.getElementById(m[1]) : null;
+      var text = (row.textContent + (body ? body.textContent : '')).toLowerCase();
+      var show = !q || text.indexOf(q) !== -1;
+      row.style.display = show ? '' : 'none';
+      if (body && !show) body.style.display = 'none';
+    }});
+
+    document.querySelectorAll('#fb-att-grid .fb-att-card').forEach(function(card) {{
+      var lbl = (card.querySelector('.fb-att-lbl') || card).textContent.toLowerCase();
+      card.style.display = (!q || lbl.indexOf(q) !== -1) ? '' : 'none';
+    }});
+
+    var msgsVis = Array.from(msgRows).some(function(r) {{ return r.style.display !== 'none'; }});
+    var attsVis = Array.from(document.querySelectorAll('#fb-att-grid .fb-att-card'))
+                    .some(function(c) {{ return c.style.display !== 'none'; }});
+    document.querySelectorAll('#tab-flightbox .fb-section-title').forEach(function(t) {{
+      t.style.display = (t.id === 'fb-att-title' ? attsVis : msgsVis) ? '' : 'none';
+    }});
+  }};
+
+  var _fbSearchEl = document.getElementById('fb-search-input');
+  if (_fbSearchEl) {{
+    _fbSearchEl.addEventListener('input',  function() {{ window.fbApplySearch(this.value); }});
+    _fbSearchEl.addEventListener('search', function() {{ window.fbApplySearch(this.value); }});
+  }}
+
+  // ── Mark all as read ──────────────────────────────────────────────────────
+  var _fbMarkBtn = document.querySelector('#tab-flightbox .fb-mark-btn');
+  if (_fbMarkBtn) {{
+    _fbMarkBtn.addEventListener('click', function() {{
+      var btn = this;
+      document.querySelectorAll('.fb-msg-row').forEach(function(r) {{ r.style.opacity = '0.45'; }});
+      btn.innerHTML = '&#10003; ALL READ';
+      setTimeout(function() {{
+        document.querySelectorAll('.fb-msg-row').forEach(function(r) {{ r.style.opacity = ''; }});
+        btn.innerHTML = 'MARK ALL<br>AS READ';
+      }}, 3000);
+    }});
+  }}
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  (function init() {{
+    var saved = _savedFolderName();
+    if (saved) {{
+      document.getElementById('fb-folder-label').textContent =
+        saved + ' \u2014 tap Choose Folder to re-scan';
+      document.getElementById('fb-clear-folder-btn').style.display = '';
+    }}
+    if (SB_ATTS.length) _renderAtts(SB_ATTS);
+  }})();
+
 }})();
 </script>
 """
