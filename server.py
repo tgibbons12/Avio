@@ -29,6 +29,7 @@ _store = {
     "current_ofp": None,
     "archive": [],
     "next_id": 1,
+    "last_error": None,
 }
 
 STATIC_DIR = os.path.join(SCRIPT_DIR, "static")
@@ -332,8 +333,10 @@ def generate():
 
     except Exception as e:
         import traceback
-        print(f"  ✘  {traceback.format_exc()}")
-        return f"Error: {e}", 500
+        tb = traceback.format_exc()
+        print(f"  ✘  {tb}")
+        _store["last_error"] = tb
+        return jsonify({"error": str(e), "traceback": tb}), 500
 
 
 @app.route("/match-pdfs", methods=["POST"])
@@ -379,6 +382,16 @@ def match_pdfs():
         return jsonify({"matches": results})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+@app.route("/debug")
+def debug():
+    err = _store.get("last_error") or "No errors recorded yet."
+    return Response(
+        "<pre style='font-family:monospace;padding:20px;background:#111;color:#f88;white-space:pre-wrap'>"
+        + err + "</pre>", mimetype="text/html"
+    )
 
 
 @app.route("/archive")
