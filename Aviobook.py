@@ -1621,7 +1621,7 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             margin-top: 2px;
             line-height: 1.5;
         }
-        /* Center column &mdash; full width */
+        /* Center column — full width */
         .arc-center {
             width: 100%;
             text-align: center;
@@ -2726,7 +2726,7 @@ window.addEventListener('load', function() {
 #nl-table-wrap{{padding:0 12px 16px;}}
 
 /* &#9472;&#9472; column header row &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; */
-/* Two rows: titles span sub-cols, then sub-labels &mdash; both use same grid as .nl-row */
+/* Two rows: titles span sub-cols, then sub-labels — both use same grid as .nl-row */
 .nlh-row,.nlh-subs-row{{
     display:grid;
     grid-template-columns: 22% 42px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 4px;
@@ -2781,7 +2781,7 @@ window.addEventListener('load', function() {
 }}
 .nl-row:active{{background:rgba(90,174,239,0.06);}}
 
-/* fix name &mdash; same white as all data */
+/* fix name — same white as all data */
 .nl-fix{{
     font-size:13px;color:#eaf6ff;font-weight:400;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -2792,7 +2792,7 @@ window.addEventListener('load', function() {
     letter-spacing:0;text-transform:none;
 }}
 
-/* MA &mdash; white like all data */
+/* MA — white like all data */
 .nl-ma{{
     text-align:center;
     font-size:13px;color:#eaf6ff;font-weight:400;
@@ -2830,7 +2830,7 @@ window.addEventListener('load', function() {
     transition:width .15s ease;
     width:4px;
 }}
-/* clock icon revealed on swipe &mdash; shown via JS adding .swiping class to card */
+/* clock icon revealed on swipe — shown via JS adding .swiping class to card */
 .nl-card.swiping .nl-swipe-bar{{
     width:38px;
     background:rgba(0,200,200,0.25);
@@ -3635,13 +3635,13 @@ function finalSubmit() {{
                 f"<div id='{gid}-detail' style='display:none;padding:8px 12px 4px;'>"
                 f"<div style='display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;'>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>VHF 1</div>"
-                f"<input type='text' placeholder='&mdash; MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='— MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>VHF 2</div>"
-                f"<input type='text' placeholder='&mdash; MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='— MHz' maxlength='10' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>CPDLC</div>"
-                f"<input type='text' placeholder='&mdash;' maxlength='20' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='—' maxlength='20' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"<div><div style='font-size:9px;color:#4e7a96;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;'>Notes</div>"
-                f"<input type='text' placeholder='&mdash;' maxlength='40' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
+                f"<input type='text' placeholder='—' maxlength='40' style='width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(90,174,239,0.2);border-radius:4px;color:#eaf6ff;font-size:13px;padding:5px 8px;outline:none;font-family:inherit;'></div>"
                 f"</div></div>\n"
             )
 
@@ -4960,38 +4960,56 @@ function resetTzOffset() {
   display:none; padding:12px 16px 16px; color:#9ec8e0; font-size:13px;
   line-height:1.6; white-space:pre-wrap; border-bottom:1px solid rgba(90,160,210,0.15);
 }
-/* Attachment thumbnails */
+/* Attachment list rows */
 .fb-att-grid {
-  display:flex; flex-wrap:wrap; gap:12px;
-  margin:0 14px 20px;
+  display:flex; flex-direction:column; gap:0;
+  margin:0 0 20px;
 }
 .fb-att-card {
-  width:calc(50% - 6px); background:rgba(20,60,90,0.5);
-  border:1px solid rgba(90,160,210,0.2); border-radius:10px;
-  overflow:hidden; cursor:pointer; position:relative;
+  display:flex; align-items:center; gap:12px;
+  padding:10px 14px; cursor:pointer;
+  border-bottom:1px solid rgba(90,160,210,0.1);
+  transition:background .15s;
 }
-.fb-att-thumb {
-  width:100%; aspect-ratio:3/4; background:#0d3347;
+.fb-att-card:first-child { border-top:1px solid rgba(90,160,210,0.1); }
+.fb-att-card:active { background:rgba(90,160,210,0.08); }
+/* PDF preview thumbnail */
+.fb-att-preview {
+  flex-shrink:0; width:40px; height:52px;
+  background:#0d2a3a; border:1px solid rgba(90,160,210,0.2);
+  border-radius:4px; overflow:hidden; position:relative;
   display:flex; align-items:center; justify-content:center;
-  font-size:28px; color:#2a6a9a; overflow:hidden;
 }
-.fb-att-thumb iframe {
-  width:200%; height:200%; transform:scale(0.5) translate(-50%,-50%);
-  transform-origin:top left; border:none; pointer-events:none;
+.fb-att-preview canvas {
+  width:100%; height:100%; object-fit:cover; display:block;
 }
-.fb-att-footer {
-  padding:8px 10px; display:flex; align-items:center; gap:8px;
-  border-top:1px solid rgba(90,160,210,0.15);
+.fb-att-preview-icon {
+  font-size:20px; color:#2a6a9a; line-height:1;
 }
-.fb-att-icon  { color:#4a9ad4; font-size:13px; flex-shrink:0; }
-.fb-att-name  { color:#d8f0ff; font-size:12px; font-weight:600;
-                overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Text block */
+.fb-att-info { flex:1; min-width:0; }
+.fb-att-label {
+  color:#d8f0ff; font-size:13px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.fb-att-filename {
+  color:#4a7a96; font-size:11px; margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.fb-att-badge {
+  flex-shrink:0; font-size:10px; font-weight:700; letter-spacing:.5px;
+  padding:3px 7px; border-radius:4px; text-transform:uppercase;
+}
+.fb-att-badge-rls { background:rgba(74,180,100,0.2); color:#4ab464; border:1px solid rgba(74,180,100,0.3); }
+.fb-att-badge-wb  { background:rgba(90,160,210,0.2); color:#5ab0e0; border:1px solid rgba(90,160,210,0.3); }
+.fb-att-badge-ext { background:rgba(180,140,60,0.2); color:#c8a840; border:1px solid rgba(180,140,60,0.3); }
+.fb-att-chev { color:#2a6a8b; font-size:18px; flex-shrink:0; }
 </style>
 """
 
     # &#9472;&#9472; Search bar &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += ("<div id='fb-search-bar'>"
-             "<input id='fb-search-input' type='search' placeholder='Search&hellip;'>"
+             "<input id='fb-search-input' type='search' placeholder='Search…'>"
              "<button class='fb-mark-btn'>MARK ALL<br>AS READ</button>"
              "</div>")
 
@@ -5029,7 +5047,7 @@ function resetTzOffset() {
     # ── Attachments section (dynamic — folder picker handled entirely client-side) ──
     # SimBrief remote links are still passed as seed attachments.
     _fb_sb_att_js = _json.dumps([
-        {'label': sf['name'], 'short': sf['name'][:28], 'uri': sf['link'], 'ext': 'remote'}
+        {'label': sf['name'], 'name': sf['name'], 'doc_type': '', 'uri': sf['link'], 'ext': 'remote'}
         for sf in _fb_sb_links
     ])
 
@@ -5151,17 +5169,17 @@ function resetTzOffset() {
       toRead.forEach(function(m, i) {{
         var file = _fileMap[m.name];
         if (!file) {{
-          results[i] = {{ label: _docLabel(m), uri: '', ext: 'local' }};
+          results[i] = {{ label: _docLabel(m), name: m.name, doc_type: m.doc_type, uri: '', ext: 'local' }};
           if (--pending === 0) _finaliseAtts(results);
           return;
         }}
         var reader = new FileReader();
         reader.onload = function(e) {{
-          results[i] = {{ label: _docLabel(m), uri: e.target.result, ext: 'local' }};
+          results[i] = {{ label: _docLabel(m), name: m.name, doc_type: m.doc_type, uri: e.target.result, ext: 'local' }};
           if (--pending === 0) _finaliseAtts(results);
         }};
         reader.onerror = function() {{
-          results[i] = {{ label: m.name, uri: '', ext: 'local' }};
+          results[i] = {{ label: m.name, name: m.name, doc_type: m.doc_type, uri: '', ext: 'local' }};
           if (--pending === 0) _finaliseAtts(results);
         }};
         reader.readAsDataURL(file);
@@ -5183,6 +5201,45 @@ function resetTzOffset() {
     _renderAtts(_attList);
   }}
 
+  // ── PDF.js preview helper ────────────────────────────────────────────────
+  var _PDFJS_LOADED = false;
+  function _loadPdfJs(cb) {{
+    if (window.pdfjsLib) {{ cb(); return; }}
+    if (_PDFJS_LOADED) {{ setTimeout(function(){{ _loadPdfJs(cb); }}, 100); return; }}
+    _PDFJS_LOADED = true;
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function() {{
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      cb();
+    }};
+    document.head.appendChild(s);
+  }}
+
+  function _renderPdfThumb(dataUri, canvas) {{
+    _loadPdfJs(function() {{
+      try {{
+        var data = atob(dataUri.split(',')[1]);
+        var arr  = new Uint8Array(data.length);
+        for (var i = 0; i < data.length; i++) arr[i] = data.charCodeAt(i);
+        pdfjsLib.getDocument({{data: arr}}).promise.then(function(pdf) {{
+          return pdf.getPage(1);
+        }}).then(function(page) {{
+          var vp = page.getViewport({{scale: 0.3}});
+          canvas.width  = vp.width;
+          canvas.height = vp.height;
+          page.render({{canvasContext: canvas.getContext('2d'), viewport: vp}}).promise.then(function() {{
+            // Hide the fallback icon once canvas is drawn
+            var icon = canvas.parentNode.querySelector('.fb-att-preview-icon');
+            if (icon) icon.style.display = 'none';
+            canvas.style.display = 'block';
+          }});
+        }}).catch(function() {{}});
+      }} catch(e) {{}}
+    }});
+  }}
+
   function _renderAtts(atts) {{
     var grid  = document.getElementById('fb-att-grid');
     var empty = document.getElementById('fb-att-empty');
@@ -5193,18 +5250,46 @@ function resetTzOffset() {
     empty.style.display = 'none';
 
     atts.forEach(function(att) {{
+      // Badge by doc type
+      var badgeCls = 'fb-att-badge-ext', badgeTxt = 'PDF';
+      if (att.doc_type === 'RLS' || att.label === 'Operational Flt Release')
+        {{ badgeCls = 'fb-att-badge-rls'; badgeTxt = 'RLS'; }}
+      else if (att.doc_type === 'WB' || att.label === 'Takeoff Landing Data')
+        {{ badgeCls = 'fb-att-badge-wb'; badgeTxt = 'W&B'; }}
+      else if (att.ext === 'remote')
+        {{ badgeCls = 'fb-att-badge-ext'; badgeTxt = 'LINK'; }}
+
+      // Display name: label for known types, filename stem otherwise
+      var displayName = att.label || att.name || '';
+      var fileName    = att.name  || (att.uri && att.ext === 'remote' ? att.label : '') || '';
+
       var card = document.createElement('div');
       card.className = 'fb-att-card';
+      card.setAttribute('data-search', (displayName + ' ' + fileName).toLowerCase());
+
+      var previewId = 'fb-prev-' + Math.random().toString(36).slice(2);
       card.innerHTML =
-        '<div class="fb-att-thumb">&#128196;</div>' +
-        '<div class="fb-att-footer">' +
-          '<span class="fb-att-icon">&#128196;</span>' +
-          '<span class="fb-att-name fb-att-lbl">' +
-            (att.label || att.short || att.name || '') +
-          '</span>' +
-        '</div>';
+        '<div class="fb-att-preview" id="' + previewId + '">' +
+          '<span class="fb-att-preview-icon">&#128196;</span>' +
+          '<canvas style="display:none;width:100%;height:100%;object-fit:cover;"></canvas>' +
+        '</div>' +
+        '<div class="fb-att-info">' +
+          '<div class="fb-att-label fb-att-lbl">' + displayName + '</div>' +
+          (fileName && fileName !== displayName
+            ? '<div class="fb-att-filename">' + fileName + '</div>'
+            : '') +
+        '</div>' +
+        '<span class="fb-att-badge ' + badgeCls + '">' + badgeTxt + '</span>' +
+        '<span class="fb-att-chev">&#8250;</span>';
+
       card.addEventListener('click', function() {{ _openAtt(att); }});
       grid.appendChild(card);
+
+      // Render PDF preview thumbnail if we have a data URI
+      if (att.uri && att.uri.indexOf('data:application/pdf') === 0) {{
+        var canvas = card.querySelector('canvas');
+        _renderPdfThumb(att.uri, canvas);
+      }}
     }});
 
     var si = document.getElementById('fb-search-input');
@@ -5253,8 +5338,8 @@ function resetTzOffset() {
     }});
 
     document.querySelectorAll('#fb-att-grid .fb-att-card').forEach(function(card) {{
-      var lbl = (card.querySelector('.fb-att-lbl') || card).textContent.toLowerCase();
-      card.style.display = (!q || lbl.indexOf(q) !== -1) ? '' : 'none';
+      var haystack = (card.getAttribute('data-search') || card.textContent).toLowerCase();
+      card.style.display = (!q || haystack.indexOf(q) !== -1) ? '' : 'none';
     }});
 
     var msgsVis = Array.from(msgRows).some(function(r) {{ return r.style.display !== 'none'; }});
@@ -6008,21 +6093,21 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="wp-cols">
       <div class="wp-col">
         <label>PLND FL</label><div class="wp-plnd-val" id="wp-p-alt">&mdash;</div>
-        <label>ACTUAL FL</label><input type="text" id="wp-a-alt" maxlength="5" placeholder="&mdash;">
+        <label>ACTUAL FL</label><input type="text" id="wp-a-alt" maxlength="5" placeholder="—">
       </div>
       <div class="wp-col">
         <label>PLND TIME</label><div class="wp-plnd-val" id="wp-p-et">&mdash;</div>
-        <label>ACTUAL TIME</label><input type="text" id="wp-a-et" maxlength="5" placeholder="&mdash;">
+        <label>ACTUAL TIME</label><input type="text" id="wp-a-et" maxlength="5" placeholder="—">
       </div>
       <div class="wp-col">
         <label>PLND FUEL</label><div class="wp-plnd-val" id="wp-p-fuel">&mdash;</div>
-        <label>ACTUAL FUEL</label><input type="text" id="wp-a-fuel" maxlength="7" placeholder="&mdash;" oninput="wpCheckFuelWarn()">
+        <label>ACTUAL FUEL</label><input type="text" id="wp-a-fuel" maxlength="7" placeholder="—" oninput="wpCheckFuelWarn()">
       </div>
     </div>
     <div id="wp-fuel-warn"></div>
     <div class="wp-next">
       <label>EST TIME AT NEXT WP</label>
-      <input type="text" id="wp-next-et" maxlength="5" placeholder="&mdash;">
+      <input type="text" id="wp-next-et" maxlength="5" placeholder="—">
     </div>
     <div class="wp-btns">
       <button class="wp-btn-cancel" onclick="closeWp()">CANCEL</button>
