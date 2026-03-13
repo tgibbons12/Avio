@@ -333,7 +333,7 @@ def generate():
     except Exception as e:
         import traceback
         print(f"  ✘  {traceback.format_exc()}")
-        return f"Error: {e}", 500
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @app.route("/match-pdfs", methods=["POST"])
