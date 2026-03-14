@@ -2915,7 +2915,7 @@ function applyEntryValues() {{
         if(pE) pE.textContent=plndEt.slice(0,2)+':'+plndEt.slice(2);
         if(pF) pF.textContent=plndFuel;
     }});
-    try {{ localStorage.setItem(FLIGHT_KEY+'_toff',toff); localStorage.setItem(FLIGHT_KEY+'_fuel',fuel); }} catch(e) {{}}
+    _IDB.set(FLIGHT_KEY+'_toff', String(toff)); _IDB.set(FLIGHT_KEY+'_fuel', String(fuel));
     // Sync resolved values back to inline bar so both inputs always agree
     var _toffInpEl=document.getElementById('nl-toff-inp');
     var _fuelInpEl=document.getElementById('nl-fuel-inp');
@@ -2933,7 +2933,10 @@ function resetAllValues() {{
         card.dataset.actEt=''; card.dataset.actFuel=''; card.dataset.actAlt='';
         refreshRow(card);
     }});
-    try {{ Object.keys(localStorage).filter(function(k){{return k.startsWith(FLIGHT_KEY);}}).forEach(function(k){{localStorage.removeItem(k);}}); }} catch(e) {{}}
+    // Clear localStorage keys for this flight
+    var _lsKeys = [];
+    try {{ _lsKeys = Object.keys(localStorage).filter(function(k){{return k.startsWith(FLIGHT_KEY);}}); }} catch(e) {{}}
+    _lsKeys.forEach(function(k) {{ try {{ localStorage.removeItem(k); }} catch(e) {{}} _IDB.remove(k); }});
     // Clear and reset inline bar fields to plan defaults
     var toffInp=document.getElementById('nl-toff-inp');
     var fuelInp=document.getElementById('nl-fuel-inp');
@@ -3113,7 +3116,7 @@ function saveWp() {{
             var pF=cards[i].querySelector('.p-fuel'); if(pF) pF.textContent=Math.round(rem);
         }}
     }}
-    try {{ localStorage.setItem(FLIGHT_KEY+'_wp_'+_wpIdent,JSON.stringify({{aAlt:aAlt,aEt:aEt,aFuel:aFuel,nEt:nEt}})); }} catch(e) {{}}
+    _IDB.set(FLIGHT_KEY+'_wp_'+_wpIdent, JSON.stringify({{aAlt:aAlt,aEt:aEt,aFuel:aFuel,nEt:nEt}}));
     closeWp();
     if(window.updateStatusBadge) updateStatusBadge();
 }}
@@ -3259,27 +3262,33 @@ window.addEventListener('load',function(){{
     _nlSetSpacer();
     setTimeout(_nlSetSpacer, 200);
     window.nlSetSpacer = _nlSetSpacer;
-    try{{
-        var t=localStorage.getItem(FLIGHT_KEY+'_toff'),fu=localStorage.getItem(FLIGHT_KEY+'_fuel');
+    // Restore toff/fuel from durable storage, then re-apply navlog calcs
+    Promise.all([
+        _IDB.get(FLIGHT_KEY+'_toff'),
+        _IDB.get(FLIGHT_KEY+'_fuel')
+    ]).then(function(vals) {{
+        var t=vals[0], fu=vals[1];
         if(t) document.getElementById('input-toff').value=t;
         if(fu) document.getElementById('input-fuel').value=fu;
         if(t||fu) applyEntryValues();
-        // Restore ATOT label if T/O time was previously saved
         if(t) {{ var el=document.getElementById('svg-lbl-etot'); if(el) el.textContent='ATOT'; }}
-    }}catch(e){{}}
-    document.querySelectorAll('.nl-card[data-ident]').forEach(function(card){{
-        try{{
-            var d=JSON.parse(localStorage.getItem(FLIGHT_KEY+'_wp_'+card.dataset.ident)||'null');
-            if(d){{
-                if(d.aAlt) card.dataset.actAlt=d.aAlt;
-                if(d.aEt)  card.dataset.actEt=d.aEt;
-                if(d.aFuel) card.dataset.actFuel=d.aFuel;
-                if(d.nEt)  card.dataset.nextEt=d.nEt;
+    }}).catch(function(){{}});
+    // Restore waypoint actuals from durable storage
+    var _wpCards = Array.prototype.slice.call(document.querySelectorAll('.nl-card[data-ident]'));
+    var _wpPromises = _wpCards.map(function(card) {{
+        return _IDB.get(FLIGHT_KEY+'_wp_'+card.dataset.ident).then(function(raw) {{
+            if (!raw) return;
+            try {{
+                var d = JSON.parse(raw);
+                if(d.aAlt)  card.dataset.actAlt  = d.aAlt;
+                if(d.aEt)   card.dataset.actEt   = d.aEt;
+                if(d.aFuel) card.dataset.actFuel  = d.aFuel;
+                if(d.nEt)   card.dataset.nextEt   = d.nEt;
                 refreshRow(card);
-            }}
-        }}catch(e){{}}
+            }} catch(e) {{}}
+        }}).catch(function(){{}});
     }});
-    nlStatusUpdate();
+    Promise.all(_wpPromises).then(function() {{ nlStatusUpdate(); }}).catch(function() {{ nlStatusUpdate(); }});
 }});
 
 function openFinalSubmit() {{
@@ -3327,7 +3336,7 @@ function finalSubmit() {{
         waypoints: waypoints
     }};
 
-    try {{ localStorage.setItem(FLIGHT_KEY + '_final', JSON.stringify(snapshot)); }} catch(e) {{}}
+    _IDB.set(FLIGHT_KEY + '_final', JSON.stringify(snapshot));
 
     closeFinalSubmit();
 
@@ -3853,6 +3862,96 @@ window.addEventListener('load', function() {
 });
 
 // &#9472;&#9472; Sign overlay JS &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+// ── Durable storage layer ────────────────────────────────────────────────────
+// Writes go to IndexedDB (persistent, up to GB, not evicted by the browser)
+// AND localStorage (fast sync fallback for quick restores).
+// Reads try IndexedDB first, then localStorage, then in-memory cache.
+// All public methods are async-safe: callers that don't await still get the
+// localStorage / memory value immediately; IDB write is fire-and-forget.
+var _IDB = (function () {
+  var DB_NAME  = 'aviobook_store';
+  var DB_VER   = 1;
+  var STORE    = 'kv';
+  var _db      = null;
+  var _queue   = [];   // pending ops before db is ready
+  var _ready   = false;
+
+  function _open() {
+    if (typeof indexedDB === 'undefined') { _ready = true; _flush(); return; }
+    var req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = function (e) {
+      e.target.result.createObjectStore(STORE);
+    };
+    req.onsuccess = function (e) {
+      _db = e.target.result;
+      _ready = true;
+      _flush();
+    };
+    req.onerror = function () {
+      _ready = true;   // fall back to LS-only
+      _flush();
+    };
+  }
+
+  function _flush() {
+    _queue.forEach(function (fn) { try { fn(); } catch(e) {} });
+    _queue = [];
+  }
+
+  function _tx(mode, fn) {
+    if (!_db) return;
+    try {
+      var tx = _db.transaction(STORE, mode);
+      fn(tx.objectStore(STORE));
+    } catch(e) {}
+  }
+
+  function set(key, value) {
+    // 1. localStorage immediately (sync, instant restore)
+    try { localStorage.setItem(key, value); } catch(e) {}
+    // 2. IndexedDB (durable, async)
+    var write = function () {
+      _tx('readwrite', function (st) { st.put(value, key); });
+    };
+    if (_ready) write(); else _queue.push(write);
+  }
+
+  function remove(key) {
+    try { localStorage.removeItem(key); } catch(e) {}
+    var del = function () {
+      _tx('readwrite', function (st) { st.delete(key); });
+    };
+    if (_ready) del(); else _queue.push(del);
+  }
+
+  // Returns a Promise that resolves to the stored string (or null).
+  function get(key) {
+    // Check memory / localStorage immediately for a fast return
+    var lsVal = null;
+    try { lsVal = localStorage.getItem(key); } catch(e) {}
+    return new Promise(function (resolve) {
+      if (!_db) { resolve(lsVal); return; }
+      try {
+        var req = _db.transaction(STORE, 'readonly')
+                     .objectStore(STORE).get(key);
+        req.onsuccess = function () {
+          var idbVal = req.result !== undefined ? req.result : null;
+          // IDB wins; also refresh localStorage so next sync read is warm
+          if (idbVal !== null && idbVal !== lsVal) {
+            try { localStorage.setItem(key, idbVal); } catch(e) {}
+          }
+          resolve(idbVal !== null ? idbVal : lsVal);
+        };
+        req.onerror = function () { resolve(lsVal); };
+      } catch(e) { resolve(lsVal); }
+    });
+  }
+
+  _open();
+  return { set: set, remove: remove, get: get };
+}());
+// ── End durable storage layer ─────────────────────────────────────────────────
+
 var _signed={};
 var _sigDrawing={ofp:false,ffd:false};
 var _sigHasData={ofp:false,ffd:false};
@@ -3984,7 +4083,7 @@ function submitSign(id){
   }
   var ts=_nowLabel(),subId=_genSubId(name,id);
   _signed[id]={ts:ts,subId:subId,unix:Date.now(),name:name,cert:cert};
-  try{localStorage.setItem(FLIGHT_KEY+'_sign_'+id,JSON.stringify(_signed[id]));}catch(e){}
+  _IDB.set(FLIGHT_KEY+'_sign_'+id, JSON.stringify(_signed[id]));
   _markSigned(id,ts,subId);
   _checkBothSigned();
 }
@@ -4038,11 +4137,12 @@ function hideBanners(){
   if(b)b.style.display='none';
   document.documentElement.style.setProperty('--banner-h','0px');
   try{localStorage.removeItem(FLIGHT_KEY+'_sign_ffd');localStorage.removeItem(FLIGHT_KEY+'_sign_ofp');}catch(e){}
+  _IDB.remove(FLIGHT_KEY+'_sign_ffd'); _IDB.remove(FLIGHT_KEY+'_sign_ofp');
 }
 
 function unsign(id){
   delete _signed[id];
-  try{localStorage.removeItem(FLIGHT_KEY+'_sign_'+id);}catch(e){}
+  _IDB.remove(FLIGHT_KEY+'_sign_'+id);
   var area=document.getElementById(id+'-signed-area');
   var btn=document.getElementById(id+'-sign-btn');
   if(area){area.style.display='none';area.innerHTML='';}
@@ -4059,12 +4159,20 @@ function unsign(id){
 }
 
 function restoreSignedState(){
-  try{
-    var fR=localStorage.getItem(FLIGHT_KEY+'_sign_ffd'),oR=localStorage.getItem(FLIGHT_KEY+'_sign_ofp');
-    if(fR){_signed['ffd']=JSON.parse(fR);var d=_signed['ffd'];_markSigned('ffd',d.ts,d.subId);}
-    if(oR){_signed['ofp']=JSON.parse(oR);var d=_signed['ofp'];_markSigned('ofp',d.ts,d.subId);}
-    _checkBothSigned();
-  }catch(e){}
+  function _applySign(key, sigId) {
+    return _IDB.get(key).then(function (raw) {
+      if (!raw) return;
+      try {
+        var d = JSON.parse(raw);
+        _signed[sigId] = d;
+        _markSigned(sigId, d.ts, d.subId);
+      } catch(e) {}
+    });
+  }
+  Promise.all([
+    _applySign(FLIGHT_KEY+'_sign_ffd', 'ffd'),
+    _applySign(FLIGHT_KEY+'_sign_ofp', 'ofp')
+  ]).then(function () { _checkBothSigned(); }).catch(function(){});
 }
 window.addEventListener('DOMContentLoaded',restoreSignedState);
 
@@ -5972,29 +6080,30 @@ function fwToggleRow(row) {
 }
 
 function saveJourneyLog() {
-    try {
-        var fields = ['jl-block-off','jl-takeoff','jl-landing','jl-block-on',
-                      'jl-flight-time','jl-block-time','jl-fob','jl-fuel-used',
-                      'jl-fuel-rem','jl-pax','jl-remarks'];
-        var data = {};
-        fields.forEach(function(id){
-            var el = document.getElementById(id);
-            if (el) data[id] = el.value;
-        });
-        localStorage.setItem('av_journey_log', JSON.stringify(data));
-        var btn = document.querySelector('#tab-journeylog button');
-        if (btn) { btn.textContent = '\u2713 Saved'; setTimeout(function(){ btn.innerHTML = '&#10003; Save Journey Log'; }, 2000); }
-    } catch(e) {}
+    var fields = ['jl-block-off','jl-takeoff','jl-landing','jl-block-on',
+                  'jl-flight-time','jl-block-time','jl-fob','jl-fuel-used',
+                  'jl-fuel-rem','jl-pax','jl-remarks'];
+    var data = {};
+    fields.forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) data[id] = el.value;
+    });
+    _IDB.set('av_journey_log', JSON.stringify(data));
+    var btn = document.querySelector('#tab-journeylog button');
+    if (btn) { btn.textContent = '\u2713 Saved'; setTimeout(function(){ btn.innerHTML = '&#10003; Save Journey Log'; }, 2000); }
 }
 
 function restoreJourneyLog() {
-    try {
-        var data = JSON.parse(localStorage.getItem('av_journey_log') || '{}');
-        Object.keys(data).forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.value = data[id];
-        });
-    } catch(e) {}
+    _IDB.get('av_journey_log').then(function(raw) {
+        if (!raw) return;
+        try {
+            var data = JSON.parse(raw);
+            Object.keys(data).forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.value = data[id];
+            });
+        } catch(e) {}
+    }).catch(function(){});
 }
 
 document.addEventListener('keydown', function(e) {
