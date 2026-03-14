@@ -5203,17 +5203,26 @@ function resetTzOffset() {
   var FLIGHT_NUM  = {_json.dumps(_fb_fltnum)};
   var SB_ATTS     = {_fb_sb_att_js};
 
-  var _fileMap = {{}};
+  var _fileMap = {{}};   // name -> File object (current session only)
   var _attList = [];
 
-  var LS_NAME_KEY = 'av_folder_name';
+  // ── Durable folder storage (IDB-backed, same layer as rest of app) ─────────
+  var IDB_FOLDER_META = 'av_folder_meta';   // {{name, pdfCount}}
+  var IDB_FOLDER_ATTS = 'av_folder_atts';   // serialised att list (base64 data URIs included)
 
-  function _savedFolderName() {{
-    try {{ return localStorage.getItem(LS_NAME_KEY) || ''; }} catch(e) {{ return ''; }}
+  function _saveFolderMeta(name, pdfCount) {{
+    _IDB.set(IDB_FOLDER_META, JSON.stringify({{name: name, pdfCount: pdfCount}}));
   }}
-  function _saveFolderName(n) {{
-    try {{ if (n) localStorage.setItem(LS_NAME_KEY, n);
-          else   localStorage.removeItem(LS_NAME_KEY); }} catch(e) {{}}
+  function _clearFolderCache() {{
+    _IDB.remove(IDB_FOLDER_META);
+    _IDB.remove(IDB_FOLDER_ATTS);
+  }}
+  function _saveFolderAtts(atts) {{
+    // Persist the fully-resolved att list (including base64 data URIs for local PDFs)
+    // so next page load can render without re-picking the folder.
+    try {{
+      _IDB.set(IDB_FOLDER_ATTS, JSON.stringify(atts));
+    }} catch(e) {{}}
   }}
 
   window.fbPickFolder = function() {{
@@ -5223,7 +5232,7 @@ function resetTzOffset() {
   window.fbClearFolder = function() {{
     _fileMap = {{}};
     _attList = [];
-    _saveFolderName('');
+    _clearFolderCache();
     document.getElementById('fb-folder-label').textContent = 'No folder selected';
     document.getElementById('fb-clear-folder-btn').style.display = 'none';
     document.getElementById('fb-folder-input').value = '';
@@ -5247,7 +5256,7 @@ function resetTzOffset() {
     document.getElementById('fb-folder-label').textContent =
       folderName + ' \u2014 ' + pdfCount + ' PDF' + (pdfCount !== 1 ? 's' : '');
     document.getElementById('fb-clear-folder-btn').style.display = '';
-    _saveFolderName(folderName);
+    _saveFolderMeta(folderName, pdfCount);
 
     if (!pdfCount) {{ _renderAtts(SB_ATTS.length ? SB_ATTS : []); return; }}
     _scanAndRender(Object.keys(_fileMap));
@@ -5268,7 +5277,12 @@ function resetTzOffset() {
     .then(function(resp) {{
       status.style.display = 'none';
       var matches = (resp.matches || []).filter(function(m) {{ return m.score >= 20; }});
-      if (!matches.length) {{ _renderAtts(SB_ATTS.length ? SB_ATTS : []); return; }}
+      if (!matches.length) {{
+        var fallback = SB_ATTS.length ? SB_ATTS : [];
+        _saveFolderAtts(fallback);
+        _renderAtts(fallback);
+        return;
+      }}
 
       var toRead  = matches.slice(0, 4);
       var pending = toRead.length;
@@ -5306,6 +5320,7 @@ function resetTzOffset() {
 
   function _finaliseAtts(localAtts) {{
     _attList = localAtts.filter(function(a) {{ return a.uri; }}).concat(SB_ATTS);
+    _saveFolderAtts(_attList);   // persist to IDB so next reload skips re-pick
     _renderAtts(_attList);
   }}
 
@@ -5338,7 +5353,6 @@ function resetTzOffset() {
           canvas.width  = vp.width;
           canvas.height = vp.height;
           page.render({{canvasContext: canvas.getContext('2d'), viewport: vp}}).promise.then(function() {{
-            // Hide the fallback icon once canvas is drawn
             var icon = canvas.parentNode.querySelector('.fb-att-preview-icon');
             if (icon) icon.style.display = 'none';
             canvas.style.display = 'block';
@@ -5358,7 +5372,6 @@ function resetTzOffset() {
     empty.style.display = 'none';
 
     atts.forEach(function(att) {{
-      // Badge by doc type
       var badgeCls = 'fb-att-badge-ext', badgeTxt = 'PDF';
       if (att.doc_type === 'RLS' || att.label === 'Operational Flt Release')
         {{ badgeCls = 'fb-att-badge-rls'; badgeTxt = 'RLS'; }}
@@ -5367,7 +5380,6 @@ function resetTzOffset() {
       else if (att.ext === 'remote')
         {{ badgeCls = 'fb-att-badge-ext'; badgeTxt = 'LINK'; }}
 
-      // Display name: label for known types, filename stem otherwise
       var displayName = att.label || att.name || '';
       var fileName    = att.name  || (att.uri && att.ext === 'remote' ? att.label : '') || '';
 
@@ -5393,7 +5405,6 @@ function resetTzOffset() {
       card.addEventListener('click', function() {{ _openAtt(att); }});
       grid.appendChild(card);
 
-      // Render PDF preview thumbnail if we have a data URI
       if (att.uri && att.uri.indexOf('data:application/pdf') === 0) {{
         var canvas = card.querySelector('canvas');
         _renderPdfThumb(att.uri, canvas);
@@ -5478,15 +5489,39 @@ function resetTzOffset() {
     }});
   }}
 
-  // ── Init ─────────────────────────────────────────────────────────────────
+  // ── Init: restore folder state from IDB on page load ─────────────────────
   (function init() {{
-    var saved = _savedFolderName();
-    if (saved) {{
-      document.getElementById('fb-folder-label').textContent =
-        saved + ' \u2014 tap Choose Folder to re-scan';
-      document.getElementById('fb-clear-folder-btn').style.display = '';
-    }}
+    // Always render SimBrief remote attachments immediately
     if (SB_ATTS.length) _renderAtts(SB_ATTS);
+
+    // Then try to restore the previously-picked folder from IDB
+    Promise.all([
+      _IDB.get(IDB_FOLDER_META),
+      _IDB.get(IDB_FOLDER_ATTS)
+    ]).then(function(vals) {{
+      var metaRaw = vals[0], attsRaw = vals[1];
+      if (!metaRaw) return;  // never picked a folder
+
+      var meta = JSON.parse(metaRaw);
+      // Restore the label
+      document.getElementById('fb-folder-label').textContent =
+        meta.name + ' \u2014 ' + meta.pdfCount + ' PDF' + (meta.pdfCount !== 1 ? 's' : '');
+      document.getElementById('fb-clear-folder-btn').style.display = '';
+
+      // Restore the full att list (including base64 PDFs) if we cached it
+      if (attsRaw) {{
+        try {{
+          var cachedAtts = JSON.parse(attsRaw);
+          if (cachedAtts.length) {{
+            _renderAtts(cachedAtts);
+            return;
+          }}
+        }} catch(e) {{}}
+      }}
+      // Cached atts missing — show a re-scan prompt without clearing the label
+      document.getElementById('fb-folder-label').textContent =
+        meta.name + ' \u2014 tap Choose Folder to re-scan';
+    }}).catch(function(){{}});
   }})();
 
 }})();
