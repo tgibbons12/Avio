@@ -5457,68 +5457,76 @@ function resetTzOffset() {
     if (si && si.value) window.fbApplySearch(si.value);
   }}
 
-  // ── In-app PDF viewer ────────────────────────────────────────────────────
-  // Opens PDFs in a full-screen overlay instead of leaving the app.
-  // The overlay is created once and reused; the iframe src is swapped each time.
-  var _pdfOverlay = null;
-  var _pdfIframe  = null;
-  var _pdfBlobUrl = null;   // track so we can revoke on close
+  // ── In-app PDF viewer (PDF.js canvas renderer) ──────────────────────────
+  // Renders every page as a canvas scaled to viewport width.
+  // No iframe — works on iOS Safari, Android Chrome, desktop.
+  var _pdfOverlay   = null;
+  var _pdfScroll    = null;
+  var _pdfTitleEl   = null;
+  var _pdfRendering = false;
 
   function _ensurePdfOverlay() {{
     if (_pdfOverlay) return;
 
-    // ── Overlay shell ──────────────────────────────────────────────────────
     _pdfOverlay = document.createElement('div');
     _pdfOverlay.id = 'av-pdf-overlay';
     _pdfOverlay.style.cssText = [
-      'display:none', 'position:fixed', 'inset:0', 'z-index:2000',
-      'background:#0d2233', 'flex-direction:column',
+      'display:none','position:fixed','inset:0','z-index:2000',
+      'background:#1a2e3e','flex-direction:column',
       'font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif'
     ].join(';');
 
     // ── Top bar ────────────────────────────────────────────────────────────
     var bar = document.createElement('div');
     bar.style.cssText = [
-      'display:flex', 'align-items:center', 'gap:12px',
-      'padding:0 16px', 'height:52px', 'flex-shrink:0',
+      'display:flex','align-items:center','gap:10px',
+      'padding:0 14px','height:52px','flex-shrink:0',
       'background:#0b1f30',
       'border-bottom:1px solid rgba(90,160,210,0.18)'
     ].join(';');
 
     var closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '&#8592;';
-    closeBtn.title = 'Close';
+    closeBtn.innerHTML = '&#8592; Back';
     closeBtn.style.cssText = [
-      'background:none', 'border:none', 'color:#7ac4e8',
-      'font-size:22px', 'line-height:1', 'padding:0 4px 2px',
-      'cursor:pointer', 'flex-shrink:0'
+      'background:none','border:none','color:#7ac4e8',
+      'font-size:15px','font-weight:600','letter-spacing:0.2px',
+      'padding:8px 4px','cursor:pointer','flex-shrink:0',
+      '-webkit-tap-highlight-color:transparent'
     ].join(';');
     closeBtn.addEventListener('click', _closePdfOverlay);
 
-    var titleEl = document.createElement('div');
-    titleEl.id = 'av-pdf-title';
-    titleEl.style.cssText = [
-      'flex:1', 'font-size:13px', 'font-weight:600',
-      'color:#e8f6ff', 'letter-spacing:0.3px',
-      'overflow:hidden', 'text-overflow:ellipsis', 'white-space:nowrap'
+    _pdfTitleEl = document.createElement('div');
+    _pdfTitleEl.style.cssText = [
+      'flex:1','font-size:12px','font-weight:600','color:#c8dff0',
+      'letter-spacing:0.3px','overflow:hidden',
+      'text-overflow:ellipsis','white-space:nowrap','text-align:right'
     ].join(';');
 
     bar.appendChild(closeBtn);
-    bar.appendChild(titleEl);
+    bar.appendChild(_pdfTitleEl);
     _pdfOverlay.appendChild(bar);
 
-    // ── iframe ─────────────────────────────────────────────────────────────
-    _pdfIframe = document.createElement('iframe');
-    _pdfIframe.style.cssText = [
-      'flex:1', 'width:100%', 'border:none',
-      'background:#1a3a50'
+    // ── Loading indicator ──────────────────────────────────────────────────
+    var loadingEl = document.createElement('div');
+    loadingEl.id = 'av-pdf-loading';
+    loadingEl.textContent = 'Loading\u2026';
+    loadingEl.style.cssText = [
+      'display:none','position:absolute','top:52px','left:0','right:0',
+      'padding:32px','text-align:center','color:#4a8aaa','font-size:13px'
     ].join(';');
-    _pdfIframe.setAttribute('allowfullscreen', '');
-    _pdfOverlay.appendChild(_pdfIframe);
+    _pdfOverlay.appendChild(loadingEl);
+
+    // ── Scrollable canvas container ────────────────────────────────────────
+    _pdfScroll = document.createElement('div');
+    _pdfScroll.style.cssText = [
+      'flex:1','overflow-y:auto','overflow-x:hidden',
+      '-webkit-overflow-scrolling:touch',
+      'background:#1a2e3e','padding:12px 0'
+    ].join(';');
+    _pdfOverlay.appendChild(_pdfScroll);
 
     document.body.appendChild(_pdfOverlay);
 
-    // Swipe-down / Escape to close
     document.addEventListener('keydown', function(e) {{
       if (e.key === 'Escape' && _pdfOverlay.style.display !== 'none') _closePdfOverlay();
     }});
@@ -5526,41 +5534,100 @@ function resetTzOffset() {
 
   function _closePdfOverlay() {{
     if (!_pdfOverlay) return;
+    _pdfRendering = false;
     _pdfOverlay.style.display = 'none';
     document.body.style.overflow = '';
-    // Clear iframe to stop PDF rendering and free memory
-    _pdfIframe.src = 'about:blank';
-    if (_pdfBlobUrl) {{ URL.revokeObjectURL(_pdfBlobUrl); _pdfBlobUrl = null; }}
+    _pdfScroll.innerHTML = '';
+  }}
+
+  function _renderAllPages(pdfDoc) {{
+    _pdfScroll.innerHTML = '';
+    var availWidth  = _pdfScroll.clientWidth || window.innerWidth;
+    var numPages    = pdfDoc.numPages;
+    var loadingEl   = document.getElementById('av-pdf-loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    function renderPage(n) {{
+      if (n > numPages || !_pdfRendering) return;
+      pdfDoc.getPage(n).then(function(page) {{
+        var dpr      = window.devicePixelRatio || 1;
+        var vp0      = page.getViewport({{scale: 1}});
+        var scale    = (availWidth - 24) / vp0.width;
+        var viewport = page.getViewport({{scale: scale}});
+
+        var wrapper = document.createElement('div');
+        wrapper.style.cssText = [
+          'margin:0 12px 10px','border-radius:4px',
+          'overflow:hidden','background:#fff',
+          'box-shadow:0 2px 12px rgba(0,0,0,0.4)'
+        ].join(';');
+
+        var canvas = document.createElement('canvas');
+        canvas.width  = Math.floor(viewport.width  * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width  = Math.floor(viewport.width)  + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
+        canvas.style.display = 'block';
+
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        wrapper.appendChild(canvas);
+        _pdfScroll.appendChild(wrapper);
+
+        page.render({{canvasContext: ctx, viewport: viewport}}).promise
+          .then(function()  {{ renderPage(n + 1); }})
+          .catch(function() {{ renderPage(n + 1); }});
+      }}).catch(function() {{ renderPage(n + 1); }});
+    }}
+    renderPage(1);
   }}
 
   function _openAtt(att) {{
     if (!att.uri) return;
     _ensurePdfOverlay();
 
-    var titleEl = document.getElementById('av-pdf-title');
-    if (titleEl) titleEl.textContent = att.label || att.name || 'Document';
-
-    if (att.uri.indexOf('data:') === 0) {{
-      // Convert base64 data URI → Blob URL (iframes accept blob: URLs cleanly)
-      try {{
-        var parts  = att.uri.split(',');
-        var mime   = parts[0].split(':')[1].split(';')[0];
-        var binary = atob(parts[1]);
-        var bytes  = new Uint8Array(binary.length);
-        for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        if (_pdfBlobUrl) URL.revokeObjectURL(_pdfBlobUrl);
-        _pdfBlobUrl  = URL.createObjectURL(new Blob([bytes], {{type: mime}}));
-        _pdfIframe.src = _pdfBlobUrl;
-      }} catch(e) {{
-        _pdfIframe.src = att.uri;  // fallback: set data URI directly
-      }}
-    }} else {{
-      _pdfBlobUrl = null;
-      _pdfIframe.src = att.uri;
-    }}
-
+    _pdfTitleEl.textContent = att.label || att.name || 'Document';
+    _pdfScroll.innerHTML = '';
+    _pdfRendering = true;
     _pdfOverlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    _pdfScroll.scrollTop = 0;
+
+    var loadingEl = document.getElementById('av-pdf-loading');
+    if (loadingEl) loadingEl.style.display = 'block';
+
+    function _loadAndRender(dataUri) {{
+      _loadPdfJs(function() {{
+        try {{
+          var b64    = dataUri.split(',')[1];
+          var binary = atob(b64);
+          var arr    = new Uint8Array(binary.length);
+          for (var i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+          pdfjsLib.getDocument({{data: arr}}).promise.then(function(pdfDoc) {{
+            if (_pdfRendering) _renderAllPages(pdfDoc);
+          }}).catch(function() {{
+            if (loadingEl) loadingEl.textContent = 'Could not render PDF.';
+          }});
+        }} catch(e) {{
+          if (loadingEl) loadingEl.textContent = 'Could not load PDF.';
+        }}
+      }});
+    }}
+
+    if (att.uri.indexOf('data:') === 0) {{
+      _loadAndRender(att.uri);
+    }} else {{
+      fetch(att.uri).then(function(r) {{ return r.arrayBuffer(); }}).then(function(buf) {{
+        if (!_pdfRendering) return;
+        var b64 = 'data:application/pdf;base64,' + btoa(
+          new Uint8Array(buf).reduce(function(d,b){{ return d + String.fromCharCode(b); }}, '')
+        );
+        _loadAndRender(b64);
+      }}).catch(function() {{
+        window.open(att.uri, '_blank', 'noopener');
+        _closePdfOverlay();
+      }});
+    }}
   }}
 
   // ── Message toggle ────────────────────────────────────────────────────────
