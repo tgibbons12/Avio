@@ -5457,40 +5457,110 @@ function resetTzOffset() {
     if (si && si.value) window.fbApplySearch(si.value);
   }}
 
+  // ── In-app PDF viewer ────────────────────────────────────────────────────
+  // Opens PDFs in a full-screen overlay instead of leaving the app.
+  // The overlay is created once and reused; the iframe src is swapped each time.
+  var _pdfOverlay = null;
+  var _pdfIframe  = null;
+  var _pdfBlobUrl = null;   // track so we can revoke on close
+
+  function _ensurePdfOverlay() {{
+    if (_pdfOverlay) return;
+
+    // ── Overlay shell ──────────────────────────────────────────────────────
+    _pdfOverlay = document.createElement('div');
+    _pdfOverlay.id = 'av-pdf-overlay';
+    _pdfOverlay.style.cssText = [
+      'display:none', 'position:fixed', 'inset:0', 'z-index:2000',
+      'background:#0d2233', 'flex-direction:column',
+      'font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif'
+    ].join(';');
+
+    // ── Top bar ────────────────────────────────────────────────────────────
+    var bar = document.createElement('div');
+    bar.style.cssText = [
+      'display:flex', 'align-items:center', 'gap:12px',
+      'padding:0 16px', 'height:52px', 'flex-shrink:0',
+      'background:#0b1f30',
+      'border-bottom:1px solid rgba(90,160,210,0.18)'
+    ].join(';');
+
+    var closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '&#8592;';
+    closeBtn.title = 'Close';
+    closeBtn.style.cssText = [
+      'background:none', 'border:none', 'color:#7ac4e8',
+      'font-size:22px', 'line-height:1', 'padding:0 4px 2px',
+      'cursor:pointer', 'flex-shrink:0'
+    ].join(';');
+    closeBtn.addEventListener('click', _closePdfOverlay);
+
+    var titleEl = document.createElement('div');
+    titleEl.id = 'av-pdf-title';
+    titleEl.style.cssText = [
+      'flex:1', 'font-size:13px', 'font-weight:600',
+      'color:#e8f6ff', 'letter-spacing:0.3px',
+      'overflow:hidden', 'text-overflow:ellipsis', 'white-space:nowrap'
+    ].join(';');
+
+    bar.appendChild(closeBtn);
+    bar.appendChild(titleEl);
+    _pdfOverlay.appendChild(bar);
+
+    // ── iframe ─────────────────────────────────────────────────────────────
+    _pdfIframe = document.createElement('iframe');
+    _pdfIframe.style.cssText = [
+      'flex:1', 'width:100%', 'border:none',
+      'background:#1a3a50'
+    ].join(';');
+    _pdfIframe.setAttribute('allowfullscreen', '');
+    _pdfOverlay.appendChild(_pdfIframe);
+
+    document.body.appendChild(_pdfOverlay);
+
+    // Swipe-down / Escape to close
+    document.addEventListener('keydown', function(e) {{
+      if (e.key === 'Escape' && _pdfOverlay.style.display !== 'none') _closePdfOverlay();
+    }});
+  }}
+
+  function _closePdfOverlay() {{
+    if (!_pdfOverlay) return;
+    _pdfOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+    // Clear iframe to stop PDF rendering and free memory
+    _pdfIframe.src = 'about:blank';
+    if (_pdfBlobUrl) {{ URL.revokeObjectURL(_pdfBlobUrl); _pdfBlobUrl = null; }}
+  }}
+
   function _openAtt(att) {{
     if (!att.uri) return;
+    _ensurePdfOverlay();
+
+    var titleEl = document.getElementById('av-pdf-title');
+    if (titleEl) titleEl.textContent = att.label || att.name || 'Document';
+
     if (att.uri.indexOf('data:') === 0) {{
+      // Convert base64 data URI → Blob URL (iframes accept blob: URLs cleanly)
       try {{
-        // Convert data URI → Blob → Object URL, then open via a named anchor.
-        // Using a filename with .pdf extension lets iOS/macOS hand off to the
-        // native PDF viewer (Files / Preview) instead of staying in the browser.
         var parts  = att.uri.split(',');
         var mime   = parts[0].split(':')[1].split(';')[0];
         var binary = atob(parts[1]);
         var bytes  = new Uint8Array(binary.length);
         for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        var blob     = new Blob([bytes], {{type: mime}});
-        var blobUrl  = URL.createObjectURL(blob);
-        var safeName = (att.name || att.label || 'document').replace(/[^a-zA-Z0-9._-]/g,'_');
-        if (!safeName.toLowerCase().endsWith('.pdf')) safeName += '.pdf';
-        // Anchor with download + target _blank: browser opens the blob in a new
-        // tab with the right filename, which iOS intercepts as a PDF open request.
-        var a = document.createElement('a');
-        a.href     = blobUrl;
-        a.download = safeName;
-        a.target   = '_blank';
-        a.rel      = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function() {{
-          document.body.removeChild(a);
-          URL.revokeObjectURL(blobUrl);
-        }}, 2000);
-      }} catch(e) {{ window.open(att.uri, '_blank'); }}
+        if (_pdfBlobUrl) URL.revokeObjectURL(_pdfBlobUrl);
+        _pdfBlobUrl  = URL.createObjectURL(new Blob([bytes], {{type: mime}}));
+        _pdfIframe.src = _pdfBlobUrl;
+      }} catch(e) {{
+        _pdfIframe.src = att.uri;  // fallback: set data URI directly
+      }}
     }} else {{
-      // Remote URL — open directly; browser / OS handles PDF viewer routing
-      window.open(att.uri, '_blank', 'noopener');
+      _pdfBlobUrl = null;
+      _pdfIframe.src = att.uri;
     }}
+
+    _pdfOverlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   }}
 
   // ── Message toggle ────────────────────────────────────────────────────────
