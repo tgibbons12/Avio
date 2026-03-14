@@ -1294,9 +1294,15 @@ def scan_release_folder(orig_icao, dest_icao, flight_number, folder=None):
 
     def score_and_type(name):
         """
-        Parse filenames like:  KSJCKLAX638307MAR-RLS.pdf
-                                KSJCKLAX638307MAR-WB.pdf
+        Parse filenames like:  KRDUEYWB6123 07MAR-RLS.pdf
+                                RDUEYW_B6123_07MAR2026-WB.pdf
         Format: {ORIG}{DEST}{FLTNUM}{DATE}-{TYPE}.pdf
+
+        Strict ordered-pair matching:
+          - ORIG must appear before DEST in the filename core.
+          - The pair ORIG+DEST must appear as a contiguous block (or close to it).
+          - A reversed pair (DEST+ORIG from a previous leg in the same folder) is
+            rejected even if individual airport codes score individually.
         Returns (score, doc_type) where doc_type is 'RLS', 'WB', or ''
         """
         stem = name.upper().replace('.PDF', '')
@@ -1308,20 +1314,56 @@ def scan_release_folder(orig_icao, dest_icao, flight_number, folder=None):
                 stem = stem[:-len(suffix)]
                 break
 
-        # Strip everything after last digit run (date portion like 07MAR, 07MAR2026)
-        # leaving us with {ORIG}{DEST}{FLTNUM}
+        # Collapse separators
         core = stem.replace('-','').replace('_','').replace(' ','')
 
-        pair = (orig_icao + dest_icao).upper()
+        orig = orig_icao.upper()
+        dest = dest_icao.upper()
         flt  = flight_number.upper().replace(' ','')
 
+        # ── Pair matching ────────────────────────────────────────────────────
+        # Build the expected contiguous pair string
+        pair_fwd = orig + dest          # e.g. KRDUEYW  (correct direction)
+        pair_rev = dest + orig          # e.g. KEYWKRDU (wrong direction / prior leg)
+
+        # Also handle IATA-length codes if ICAO starts with K/E/Y/Z (strip leading K)
+        def _iata(icao):
+            return icao[1:] if len(icao) == 4 and icao[0] in 'KEYZ' else icao
+        pair_fwd_iata = _iata(orig) + _iata(dest)
+        pair_rev_iata = _iata(dest) + _iata(orig)
+
         s = 0
-        if pair in core:                s += 100
-        if flt and flt in core:         s += 60
-        elif orig_icao.upper() in core: s += 20
-        if dest_icao.upper() in core:   s += 20
-        # Bonus for known suffix types
-        if doc_type in ('RLS', 'WB'):   s += 10
+
+        # Contiguous forward pair → strong positive signal
+        if pair_fwd in core or pair_fwd_iata in core:
+            s += 100
+        else:
+            # Reversed pair present → hard reject (wrong leg)
+            if pair_rev in core or pair_rev_iata in core:
+                return 0, ''
+            # Neither contiguous pair found; check individual codes in correct ORDER
+            orig_pos  = core.find(orig)
+            dest_pos  = core.find(dest)
+            orig_pos_i = core.find(_iata(orig))
+            dest_pos_i = core.find(_iata(dest))
+
+            # Prefer ICAO positions, fall back to IATA
+            o_pos = orig_pos  if orig_pos  >= 0 else orig_pos_i
+            d_pos = dest_pos  if dest_pos  >= 0 else dest_pos_i
+
+            if o_pos >= 0 and d_pos >= 0 and o_pos < d_pos:
+                s += 40   # both present, correct order, not contiguous
+            elif o_pos >= 0 or d_pos >= 0:
+                s += 10   # only one found — weak match, likely coincidence
+            else:
+                return 0, ''   # neither airport found at all
+
+        # Flight number bonus
+        if flt and flt in core:
+            s += 60
+        # Known doc-type suffix bonus
+        if doc_type in ('RLS', 'WB'):
+            s += 10
         return s, doc_type
 
     results = []
@@ -5419,16 +5461,35 @@ function resetTzOffset() {
     if (!att.uri) return;
     if (att.uri.indexOf('data:') === 0) {{
       try {{
+        // Convert data URI → Blob → Object URL, then open via a named anchor.
+        // Using a filename with .pdf extension lets iOS/macOS hand off to the
+        // native PDF viewer (Files / Preview) instead of staying in the browser.
         var parts  = att.uri.split(',');
         var mime   = parts[0].split(':')[1].split(';')[0];
         var binary = atob(parts[1]);
         var bytes  = new Uint8Array(binary.length);
         for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        var blob = new Blob([bytes], {{type: mime}});
-        window.open(URL.createObjectURL(blob), '_blank');
+        var blob     = new Blob([bytes], {{type: mime}});
+        var blobUrl  = URL.createObjectURL(blob);
+        var safeName = (att.name || att.label || 'document').replace(/[^a-zA-Z0-9._-]/g,'_');
+        if (!safeName.toLowerCase().endsWith('.pdf')) safeName += '.pdf';
+        // Anchor with download + target _blank: browser opens the blob in a new
+        // tab with the right filename, which iOS intercepts as a PDF open request.
+        var a = document.createElement('a');
+        a.href     = blobUrl;
+        a.download = safeName;
+        a.target   = '_blank';
+        a.rel      = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() {{
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }}, 2000);
       }} catch(e) {{ window.open(att.uri, '_blank'); }}
     }} else {{
-      window.open(att.uri, '_blank');
+      // Remote URL — open directly; browser / OS handles PDF viewer routing
+      window.open(att.uri, '_blank', 'noopener');
     }}
   }}
 
