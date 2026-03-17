@@ -2224,8 +2224,11 @@ window.addEventListener('load', function() {
 
     html += "</div>"
 
-    # Row 2: route &mdash; &#9992;KSTL&#9992;KRSW 30 MAR 12:10&#8250;14:30  &mdash; centered under row 1
-    html += "<div class='top-bar-row2' style='justify-content:center;'>"
+    # Row 2: route — small back chevron left, route centered
+    html += "<div class='top-bar-row2' style='justify-content:space-between;'>"
+    html += ("<a href='/' style='color:#3a7a9a;font-size:18px;font-weight:300;line-height:1;"
+             "text-decoration:none;padding:0 4px;flex-shrink:0;' title='Back to Launcher'>&#8249;</a>")
+    html += "<div style='display:flex;align-items:center;gap:6px;'>"
     html += (f"<span style='color:#5ab8e0;font-size:12px;'>&#9992;</span>"
              f"<span class='icao'>{a['origin']['icao']}</span>"
              f"<span style='color:#5ab8e0;font-size:12px;'>&#9992;</span>"
@@ -2235,13 +2238,13 @@ window.addEventListener('load', function() {
              f"<span class='arrow'>&#8250;</span>"
              f"<span class='times'>{sched_in_utc}</span>")
     html += "</div>"
+    html += "<div style='width:26px;flex-shrink:0;'></div>"  # balance spacer
+    html += "</div>"
 
     html += "</div>"  # left+center text block
 
     # &#9472;&#9472; RIGHT icons &mdash; vertically centered across both rows &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='top-bar-icons'>"
-    html += ("<button class='top-bar-icon-btn' onclick='window.location.href=\"/\"' title='Back to Launcher' "
-             "style='font-size:15px;'>&#8962;</button>")   # &#8962; home
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='if(window.openSign)openSign()' title='Sign OFP'>"
              "&#9998;</button>")    # &#9998; pencil
     html += ("<button class='top-bar-icon-btn' title='Notifications'>"
@@ -5219,7 +5222,7 @@ function resetTzOffset() {
     style='background:linear-gradient(90deg,#1a5a8a,#1e70a8);border:none;border-radius:8px;
            color:#fff;font-size:12px;font-weight:700;letter-spacing:.5px;padding:10px 16px;
            cursor:pointer;text-transform:uppercase;white-space:nowrap;flex-shrink:0;'>
-    &#128196; Choose PDFs
+    &#128193; Choose Folder
   </button>
   <div id='fb-folder-label'
     style='flex:1;font-size:12px;color:#4a8aa8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;'>
@@ -5230,8 +5233,9 @@ function resetTzOffset() {
            border-radius:6px;color:#4a8aa8;font-size:11px;padding:6px 10px;cursor:pointer;'>
     Clear
   </button>
-  <!-- PDF-only file picker (multi-select, no folder traversal) -->
-  <input type='file' id='fb-folder-input' accept='.pdf,application/pdf' multiple
+  <!-- Folder picker — lets user pick a whole directory of PDFs -->
+  <input type='file' id='fb-folder-input' accept='.pdf,application/pdf'
+         webkitdirectory mozdirectory directory multiple
          style='display:none' onchange='fbFolderSelected(this)'>
 </div>
 
