@@ -3678,12 +3678,12 @@ function finalSubmit() {{
     html += (
         f"<div id='nl-toff-bar'>"
         f"<span id='nl-toff-lbl'>T/O Time</span>"
-        f"<input id='nl-toff-inp' type='text' inputmode='numeric' maxlength='5'"
+        f"<input id='nl-toff-inp' type='tel' inputmode='numeric' maxlength='5'"
         f" placeholder='{sched_off}'"
         f" oninput=\"document.getElementById('input-toff').value=this.value;document.getElementById('navlog-toff').value=this.value\">"
         f"<input type='hidden' id='navlog-toff'>"
         f"<span id='nl-fuel-lbl'>T/O Fuel</span>"
-        f"<input id='nl-fuel-inp' type='text' inputmode='numeric' maxlength='7'"
+        f"<input id='nl-fuel-inp' type='tel' inputmode='numeric' maxlength='7'"
         f" placeholder='{plan_ramp}'"
         f" oninput=\"document.getElementById('input-fuel').value=this.value\">"
         f"<button id='nl-apply-btn' onclick='applyEntryValues()'>Apply</button>"
@@ -6695,13 +6695,13 @@ document.addEventListener('DOMContentLoaded', function() {
     <h2>Enter Flight Data</h2>
     <div class="entry-field">
       <label>Takeoff Time (HHMM)</label>
-      <input type="text" id="input-toff" inputmode="numeric" maxlength="5" value="{sched_off}" placeholder="1430"
+      <input type="tel" id="input-toff" inputmode="numeric" maxlength="5" value="{sched_off}" placeholder="1430"
              oninput="updateEntryDelta('input-toff','{sched_off}','delta-toff',true)">
       <div class="entry-hint">Scheduled: {sched_off} &nbsp;<span id="delta-toff" style="font-weight:bold"></span></div>
     </div>
     <div class="entry-field">
       <label>Block Fuel (lbs)</label>
-      <input type="text" id="input-fuel" inputmode="numeric" value="{plan_ramp}" placeholder="42000"
+      <input type="tel" id="input-fuel" inputmode="numeric" value="{plan_ramp}" placeholder="42000"
              oninput="updateEntryDelta('input-fuel','{plan_ramp}','delta-fuel',false)">
       <div class="entry-hint">Plan ramp: {plan_ramp} &nbsp;<span id="delta-fuel" style="font-weight:bold"></span></div>
     </div>
@@ -6719,21 +6719,21 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="wp-cols">
       <div class="wp-col">
         <label>PLND FL</label><div class="wp-plnd-val" id="wp-p-alt">&mdash;</div>
-        <label>ACTUAL FL</label><input type="text" id="wp-a-alt" maxlength="5" placeholder="—">
+        <label>ACTUAL FL</label><input type="tel" inputmode="numeric" id="wp-a-alt" maxlength="5" placeholder="—">
       </div>
       <div class="wp-col">
         <label>PLND TIME</label><div class="wp-plnd-val" id="wp-p-et">&mdash;</div>
-        <label>ACTUAL TIME</label><input type="text" id="wp-a-et" maxlength="5" placeholder="—">
+        <label>ACTUAL TIME</label><input type="tel" inputmode="numeric" id="wp-a-et" maxlength="5" placeholder="—">
       </div>
       <div class="wp-col">
         <label>PLND FUEL</label><div class="wp-plnd-val" id="wp-p-fuel">&mdash;</div>
-        <label>ACTUAL FUEL</label><input type="text" id="wp-a-fuel" maxlength="7" placeholder="—" oninput="wpCheckFuelWarn()">
+        <label>ACTUAL FUEL</label><input type="tel" inputmode="numeric" id="wp-a-fuel" maxlength="7" placeholder="—" oninput="wpCheckFuelWarn()">
       </div>
     </div>
     <div id="wp-fuel-warn"></div>
     <div class="wp-next">
       <label>EST TIME AT NEXT WP</label>
-      <input type="text" id="wp-next-et" maxlength="5" placeholder="—">
+      <input type="tel" inputmode="numeric" id="wp-next-et" maxlength="5" placeholder="—">
     </div>
     <div class="wp-btns">
       <button class="wp-btn-cancel" onclick="closeWp()">CANCEL</button>
