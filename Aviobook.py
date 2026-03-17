@@ -3123,7 +3123,9 @@ var PLAN_LDG_FUEL= {int(float(data['fuel'].get('plan_landing') or 0))};
 var _wpIdent = null;
 
 function hhmm2mins(s) {{
-    s = String(s||'0000').replace(':','').replace(/\u2014+/g,'').replace('','0000')||'0000'; s=s.padStart(4,'0');
+    s = String(s||'').replace(':','').replace(/\u2014+/g,'').trim();
+    if (!s) s = '0000';
+    s = s.padStart(4,'0');
     return parseInt(s.slice(0,2))*60+parseInt(s.slice(2));
 }}
 function mins2hhmm(m) {{
