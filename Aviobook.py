@@ -935,7 +935,8 @@ def _build_weather_html(root):
         return _wx_sub(sub_id, role, title, body)
 
     out = ''
-    _atis_icaos = []   # ICAOs that got an ATIS placeholder, for JS to fetch
+    _atis_icaos = []        # ICAOs that got an ATIS placeholder, for JS to fetch
+    _sb_atis    = {}        # ICAO -> SimBrief ATIS text (fallback if all live sources fail)
 
     # Airport stations in operational order
     STATIONS = [
@@ -948,13 +949,21 @@ def _build_weather_html(root):
         wx = _from_node(node)
         out += _render_station(wx, role)
         if wx and wx.get('icao'):
-            _atis_icaos.append(wx['icao'].upper())
+            icao = wx['icao'].upper()
+            _atis_icaos.append(icao)
+            sb = ' '.join(filter(None, [wx.get('dep_atis',''), wx.get('arr_atis','')]))
+            if sb:
+                _sb_atis[icao] = sb.strip()
 
     for i, alt in enumerate(root.findall('alternate'), 1):
         wx = _from_node(alt)
         out += _render_station(wx, f'ALTERNATE {i}', i)
         if wx and wx.get('icao'):
-            _atis_icaos.append(wx['icao'].upper())
+            icao = wx['icao'].upper()
+            _atis_icaos.append(icao)
+            sb = ' '.join(filter(None, [wx.get('dep_atis',''), wx.get('arr_atis','')]))
+            if sb:
+                _sb_atis[icao] = sb.strip()
 
     # SIGMETs &mdash; navlog FIR order (mirrors MASTERLOG)
     navlog_firs = OrderedDict()
@@ -999,30 +1008,25 @@ def _build_weather_html(root):
     if unique_icaos:
         out += """
 <style>
-.atis-refresh-btn {
-  display:inline-block; margin:4px 12px 8px;
-  background:rgba(30,80,120,0.5); border:1px solid rgba(90,160,210,0.35);
-  border-radius:6px; color:#6ab8d8; font-size:11px; font-weight:600;
-  padding:5px 12px; cursor:pointer; letter-spacing:0.3px;
-}
-.atis-refresh-btn:active { opacity:0.7; }
-.atis-error { padding:6px 12px; font-size:12px; color:#d46060; font-family:monospace; }
-.atis-loading { padding:6px 12px; font-size:12px; color:#4a8aaa; font-style:italic; }
+.atis-error  { padding:6px 12px; font-size:12px; color:#d46060; font-family:monospace; }
+.atis-loading{ padding:6px 12px; font-size:12px; color:#4a8aaa; font-style:italic; }
+.atis-hint   { padding:2px 12px 6px; font-size:10px; color:#3a6a80; font-style:italic; }
+[id^="wx-atis-wrap-"] { touch-action:pan-y; user-select:none; }
+[id^="wx-atis-wrap-"].atis-swiping { background:rgba(74,168,218,0.08); border-radius:4px; }
 </style>
 <script>
 (function() {
-  var ICAOS = """ + _wjson.dumps(unique_icaos) + """;
+  var ICAOS   = """ + _wjson.dumps(unique_icaos) + """;
+  var SB_ATIS = """ + _wjson.dumps(_sb_atis) + """;
 
   function _esc(t) {
-    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
   function _pre(text) {
     return "<div class='wx-text'><pre style='margin:0;white-space:pre-wrap;"
          + "word-break:break-all;font-family:monospace;font-size:12px;'>"
-         + _esc(text) + "</pre></div>";
-  }
-  function _refreshBtn(icao) {
-    return "<button class='atis-refresh-btn' onclick='window._atisRefresh(\""+icao+"\")'>&#8635; Refresh ATIS</button>";
+         + _esc(text) + "</pre></div>"
+         + "<div class='atis-hint'>\u2190 swipe to refresh</div>";
   }
   function _set(icao, html) {
     var wrap = document.getElementById('wx-atis-wrap-' + icao.toLowerCase());
@@ -1031,83 +1035,144 @@ def _build_weather_html(root):
   function _loading(icao) {
     _set(icao, "<div class='atis-loading'>Fetching live ATIS\u2026</div>");
   }
+  function _showSimbrief(icao) {
+    var sb = SB_ATIS[icao] || SB_ATIS[icao.toUpperCase()];
+    if (sb) {
+      _set(icao, _pre('[SimBrief] ' + sb));
+    } else {
+      _set(icao, "<div class='wx-nil'>No ATIS available.</div>"
+               + "<div class='atis-hint'>\u2190 swipe to retry</div>");
+    }
+  }
 
-  // Shared VATSIM promise — reset on refresh
+  function _fetchWithTimeout(url, ms) {
+    // Wrap in an outer try so even synchronous errors (missing fetch API) are caught
+    try {
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var done = false;
+      var timer = ctrl ? setTimeout(function() {
+        if (!done) { done = true; try { ctrl.abort(); } catch(e) {} }
+      }, ms) : null;
+      var opts = {};
+      try { if (ctrl) opts.signal = ctrl.signal; } catch(e) {}
+      return fetch(url, opts)
+        .then(function(r)  { done = true; if (timer) clearTimeout(timer); return r; })
+        .catch(function(e) { done = true; if (timer) clearTimeout(timer); return Promise.reject(e); });
+    } catch(e) {
+      return Promise.reject(e);
+    }
+  }
+
   var _vatsimPromise = null;
   function _getVatsim(force) {
     if (force || !_vatsimPromise) {
-      _vatsimPromise = fetch('https://data.vatsim.net/v3/vatsim-data.json')
-        .then(function(r) { return r.ok ? r.json() : Promise.reject('HTTP ' + r.status); })
-        .catch(function(e) { return {_err: String(e)}; });
+      _vatsimPromise = _fetchWithTimeout('https://data.vatsim.net/v3/vatsim-data.json', 8000)
+        .then(function(r) {
+          if (!r.ok) return null;
+          return r.json().catch(function() { return null; });
+        })
+        .catch(function() { return null; });
     }
     return _vatsimPromise;
   }
 
   function fetchVatsim(icao, force) {
-    _getVatsim(force).then(function(data) {
-      if (!data || data._err) {
-        _set(icao, "<div class='atis-error'>D-ATIS unavailable. VATSIM error: "
-             + _esc(data ? data._err : 'no data') + "</div>" + _refreshBtn(icao));
-        return;
-      }
-      var atisList = data.atis || [];
-      var parts = [];
-      atisList.forEach(function(entry) {
-        if (typeof entry.callsign === 'string' &&
-            entry.callsign.toUpperCase().indexOf(icao.toUpperCase()) === 0) {
-          var lines = entry.text_atis;
-          if (Array.isArray(lines) && lines.length) {
-            parts.push('[VATSIM] ' + lines.join(' '));
+    _getVatsim(force)
+      .then(function(data) {
+        try {
+          if (!data || typeof data !== 'object' || !Array.isArray(data.atis)) {
+            _showSimbrief(icao); return;
           }
-        }
-      });
-      if (parts.length) {
-        _set(icao, _pre(parts.join('\\n\\n')) + _refreshBtn(icao));
-      } else {
-        _set(icao, "<div class='wx-nil'>NO ATIS — airport not on VATSIM</div>" + _refreshBtn(icao));
-      }
-    });
+          var parts = [];
+          data.atis.forEach(function(entry) {
+            try {
+              if (typeof entry.callsign === 'string' &&
+                  entry.callsign.toUpperCase().indexOf(icao.toUpperCase()) === 0) {
+                var lines = entry.text_atis;
+                if (Array.isArray(lines) && lines.length) parts.push('[VATSIM] ' + lines.join(' '));
+              }
+            } catch(e) {}
+          });
+          if (parts.length) { _set(icao, _pre(parts.join('\\n\\n'))); }
+          else              { _showSimbrief(icao); }
+        } catch(e) { _showSimbrief(icao); }
+      })
+      .catch(function() { _showSimbrief(icao); });
   }
 
   function fetchDatis(icao, force) {
     _loading(icao);
-    fetch('https://datis.clowd.io/api/' + icao)
+    _fetchWithTimeout('https://datis.clowd.io/api/' + icao, 6000)
       .then(function(r) {
         if (!r.ok) return Promise.reject('HTTP ' + r.status);
-        return r.json();
+        return r.json().catch(function() { return Promise.reject('bad JSON'); });
       })
       .then(function(data) {
-        if (!Array.isArray(data)) data = [data];
-        var parts = [];
-        data.forEach(function(entry) {
-          var msg = entry.datis || entry.raw || entry.text || entry.atis || entry.message || '';
-          if (msg) parts.push(msg.trim());
-        });
-        if (parts.length) {
-          _set(icao, _pre(parts.join('\\n\\n')) + _refreshBtn(icao));
-        } else {
-          fetchVatsim(icao, force);
-        }
+        try {
+          var arr = Array.isArray(data) ? data : (data && typeof data === 'object' ? [data] : []);
+          var parts = [];
+          arr.forEach(function(entry) {
+            try {
+              var msg = entry.datis || entry.raw || entry.text || entry.atis || entry.message || '';
+              if (typeof msg === 'string' && msg.trim()) parts.push(msg.trim());
+            } catch(e) {}
+          });
+          if (parts.length) { _set(icao, _pre(parts.join('\\n\\n'))); }
+          else              { fetchVatsim(icao, force); }
+        } catch(e) { fetchVatsim(icao, force); }
       })
-      .catch(function(err) {
-        // D-ATIS failed — fall through to VATSIM, note the original error
-        fetchVatsim(icao, force);
-      });
+      .catch(function() { fetchVatsim(icao, force); });
   }
 
-  // Global refresh function callable from buttons and a top-level button
   window._atisRefresh = function(icao) {
-    if (icao) {
-      if (icao === '__all__') {
-        _vatsimPromise = null;   // bust VATSIM cache too
-        ICAOS.forEach(function(ic) { fetchDatis(ic, true); });
-      } else {
-        fetchDatis(icao, true);
-      }
-    }
+    _vatsimPromise = null;
+    if (icao === '__all__') { ICAOS.forEach(function(ic) { fetchDatis(ic, true); }); }
+    else                    { fetchDatis(icao, true); }
   };
 
-  // Initial fetch — stagger so UI stays responsive
+  // ── Swipe-left on any ATIS wrap to refresh that airport ───────────────────
+  (function() {
+    var _sx = 0, _sy = 0, _el = null, _sw = false;
+    document.addEventListener('touchstart', function(e) {
+      var wrap = e.target.closest('[id^="wx-atis-wrap-"]');
+      if (!wrap) { _el = null; return; }
+      var t = e.touches[0];
+      _sx = t.clientX; _sy = t.clientY; _el = wrap; _sw = false;
+    }, {passive: true});
+    document.addEventListener('touchmove', function(e) {
+      if (!_el) return;
+      var t = e.touches[0];
+      var dx = t.clientX - _sx, dy = Math.abs(t.clientY - _sy);
+      if (!_sw && dy > 10) { _el = null; return; }
+      if (!_sw && dx < -18 && dy < 12) _sw = true;
+      if (_sw) {
+        e.preventDefault();
+        if (dx < -30) _el.classList.add('atis-swiping');
+        else          _el.classList.remove('atis-swiping');
+      }
+    }, {passive: false});
+    document.addEventListener('touchend', function(e) {
+      if (!_el) return;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - _sx, dy = Math.abs(t.clientY - _sy);
+      var el = _el; _el = null; _sw = false;
+      el.classList.remove('atis-swiping');
+      if (dx < -60 && dy < 30) {
+        el.style.transition = 'background 0.12s';
+        el.style.background = 'rgba(74,168,218,0.18)';
+        setTimeout(function() {
+          el.style.transition = 'background 0.2s';
+          el.style.background = '';
+          setTimeout(function() { el.style.transition = ''; }, 200);
+        }, 120);
+        var icao = el.id.replace('wx-atis-wrap-', '').toUpperCase();
+        _vatsimPromise = null;
+        fetchDatis(icao, true);
+      }
+    }, {passive: true});
+  })();
+
+  // Initial staggered fetch
   ICAOS.forEach(function(icao, i) {
     setTimeout(function() { fetchDatis(icao, false); }, i * 200);
   });
