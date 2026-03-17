@@ -853,7 +853,7 @@ def _build_weather_html(root):
         out  = f"<div class='notam-sub-section'>\n"
         out += (f"  <div class='notam-sub-header' onclick=\"toggleNotamSub('{sub_id}')\">"
                 f"    <span class='notam-airport-role-badge'>{_h.escape(role_badge)}</span>"
-                f"    <span class='notam-sub-title'>{_h.escape(title)}</span>"
+                f"    <span class='notam-sub-title'>{title}</span>"
                 f"    <span class='notam-sub-arrow' id='{sub_id}-arrow'>&#9660;</span>"
                 f"  </div>\n"
                 f"  <div id='{sub_id}' class='notam-sub-body'>\n"
@@ -919,7 +919,7 @@ def _build_weather_html(root):
         if wx['iata']:
             title += f" / {wx['iata']}"
         if wx['name']:
-            title += f" &mdash; {wx['name']}"
+            title += f" &mdash; {_h.escape(wx['name'])}"
         sub_id = f"wx-sub-{icao.lower()}-{role.lower().replace(' ','-')}-{idx}"
         body = ''
         body += _wx_cat('TAF')
@@ -984,7 +984,7 @@ def _build_weather_html(root):
                 body   += _wx_text(f"{hdr}\n{text}" if text else hdr)
         else:
             body += "<div class='wx-nil'>NIL &mdash; NO ACTIVE SIGMET FOR THIS FIR</div>\n"
-        out += _wx_sub(sub_id, 'SIGMET', f"{fcode} &mdash; {display}", body)
+        out += _wx_sub(sub_id, 'SIGMET', f"{_h.escape(fcode)} &mdash; {_h.escape(display)}", body)
 
     return out
 
@@ -1153,7 +1153,7 @@ def _build_launcher_html(archive_folder):
         safe_fname = _html_escape.escape(e['fname'])
         rows += (
             f"<a href='{safe_fname}' class='fl-row'>"
-            f"<div class='fl-route'>{_html_escape.escape(label)}</div>"
+            f"<div class='fl-route'>{label}</div>"
             f"<div class='fl-meta'>{_html_escape.escape(sub)}</div>"
             f"<div class='fl-chev'>&#8250;</div>"
             f"</a>\n"
@@ -1633,7 +1633,6 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             padding: 4px 14px;
             border-radius: 20px;
             letter-spacing: 0.5px;
-            cursor: pointer;
             user-select: none;
             transition: opacity 0.15s;
         }
@@ -2317,7 +2316,7 @@ window.addEventListener('load', function() {
     _taxi_out_secs    = int(data['times'].get('taxi_out') or 0)
     _out_ts_val       = _sched_off_ts_val - _taxi_out_secs   # OUT = OFF minus taxi
     html += "  <div style='margin-bottom:6px;'>"
-    html += f"    <span id='status-badge' class='on-time-badge' data-out-ts='{_out_ts_val}' onclick='pillTap()' title='Tap to start OUT &middot; Tap again for ON BLOCKS &middot; Tap to reset'>ON TIME</span>"
+    html += f"    <span id='status-badge' class='on-time-badge' data-out-ts='{_out_ts_val}'>ON TIME</span>"
     html += "  </div>"
 
     # &#9472;&#9472; ICAO row &mdash; normal flow, flex left/right &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
@@ -2927,7 +2926,7 @@ var PLAN_LDG_FUEL= {int(float(data['fuel'].get('plan_landing') or 0))};
 var _wpIdent = null;
 
 function hhmm2mins(s) {{
-    s = String(s||'0000').replace(':','').replace('\u2014\u2014','0000').padStart(4,'0');
+    s = String(s||'0000').replace(':','').replace(/\u2014+/g,'').replace('','0000')||'0000'; s=s.padStart(4,'0');
     return parseInt(s.slice(0,2))*60+parseInt(s.slice(2));
 }}
 function mins2hhmm(m) {{
@@ -3551,6 +3550,9 @@ function finalSubmit() {{
     )
 
     def _nl_card(ident, track_mag, wind, alt, et_plnd, airway='', heading_mag='', mach='', ind_true='', row_class='', cumfuel_data=0, fix_data=None):
+        # Treat emdash placeholder values as empty so they don't leak into data-attrs or display
+        if et_plnd and '\u2014' in et_plnd:
+            et_plnd = ''
         et_fmt = et_plnd[:2]+':'+et_plnd[2:] if (et_plnd and len(et_plnd)==4 and et_plnd.isdigit()) else (et_plnd or '')
         try:
             alt_fl = str(int(round(float(alt)/100))) if alt and str(alt) not in ('---','') and float(alt) >= 100 else (alt or '')
@@ -4280,87 +4282,94 @@ function resetTzOffset() {
 }
 
 (function() {
-    // &#9472;&#9472; Flight state: 'pre' | 'airborne' | 'onblocks' &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-    var _flightState = 'pre';
-    var _blockOffMs  = 0;
-    var _blockOnMs   = 0;
-
-    // Restore from localStorage
-    try {
-        var _sv = localStorage.getItem('av_flight_state');
-        if (_sv) { var _sp = JSON.parse(_sv);
-            _flightState = _sp.state || 'pre';
-            _blockOffMs  = _sp.offMs  || 0;
-            _blockOnMs   = _sp.onMs   || 0;
-        }
-    } catch(e) {}
-
-    function _saveState() {
-        try { localStorage.setItem('av_flight_state', JSON.stringify({
-            state: _flightState, offMs: _blockOffMs, onMs: _blockOnMs
-        })); } catch(e) {}
-    }
+    // ── Status pill: ON TIME / DELAYED (pre-toff) → ARR IN H:MM (post-toff) ──
 
     function _setBadge(badge, cls, text) {
         badge.className = 'on-time-badge' + (cls ? ' ' + cls : '');
         badge.textContent = text;
     }
 
-    // Format milliseconds as HHMM (e.g. 75 mins &#8594; "0115")
+    // HHMM string → minutes since midnight
+    function _hhmm2mins(s) {
+        s = String(s || '0000').replace(':', '').padStart(4, '0');
+        return parseInt(s.slice(0, 2)) * 60 + parseInt(s.slice(2));
+    }
+
+    // Format positive minutes as H:MM
+    function _fmtMins(m) {
+        m = Math.max(0, Math.round(m));
+        return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+    }
+
+    // Delta ms → signed HHMM string e.g. "-0115" or "+0030"
     function _msToHHMM(ms) {
         var totalMins = Math.floor(Math.abs(ms) / 60000);
         var h = Math.floor(totalMins / 60), m = totalMins % 60;
-        return String(h).padStart(2,'0') + String(m).padStart(2,'0');
-    }
-
-    // Format elapsed ms as H:MM for in-flight timer
-    function _fmtElapsed(ms) {
-        var t = Math.floor(ms / 60000);
-        var h = Math.floor(t / 60), m = t % 60;
-        return h + ':' + String(m).padStart(2,'0');
+        return String(h).padStart(2, '0') + String(m).padStart(2, '0');
     }
 
     function updateStatusBadge() {
         var badge = document.getElementById('status-badge');
         if (!badge) return;
-        var outTs = parseInt(badge.dataset.outTs || '0');
-        var nowMs = Date.now();
 
-        if (_flightState === 'airborne') {
-            // Elapsed since pilot tapped OUT
-            _setBadge(badge, 'airborne-badge', '&#9992; ' + _fmtElapsed(nowMs - _blockOffMs));
-        } else if (_flightState === 'onblocks') {
-            // Total block time
-            _setBadge(badge, 'onblocks-badge', '&#11035; ' + _fmtElapsed(_blockOnMs - _blockOffMs));
-        } else {
-            // Pre-departure: compare sim clock to scheduled OUT
-            if (!outTs) { _setBadge(badge, '', 'ON TIME'); return; }
-            var diffMs = _simNow().getTime() - outTs * 1000;  // positive = late
-            if (diffMs <= 0) {
-                _setBadge(badge, '', 'ON TIME -' + _msToHHMM(-diffMs));
+        // ── Has the pilot entered a takeoff time in the navlog? ──────────────
+        var toffEl = document.getElementById('nl-toff-inp');
+        var toff   = (toffEl && toffEl.value && toffEl.value.length === 4) ? toffEl.value : '';
+
+        if (toff) {
+            // Compute ELDT = toff + last-fix cum_time_sec (wraps midnight via modulo)
+            var lastFix = NAV_FIXES.length ? NAV_FIXES[NAV_FIXES.length - 1] : null;
+            var eteMinsSeed = lastFix ? Math.round(lastFix.cum_time_sec / 60) : 0;
+
+            // If PLAN_ELDT is known, derive ETE from it relative to PLAN toff
+            // Otherwise fall back to cum_time_sec offset from entered toff
+            var toffMins = _hhmm2mins(toff);
+            var eldtMins;
+            if (PLAN_ELDT && PLAN_ELDT.length === 4) {
+                // Last card may already have been recomputed — use it if available
+                var cards = Array.from(document.querySelectorAll('.nl-card[data-ident]'));
+                var lastCard = cards.length ? cards[cards.length - 1] : null;
+                var computedEt = lastCard && lastCard.dataset.plndEt && lastCard.dataset.plndEt.length === 4
+                    ? lastCard.dataset.plndEt : PLAN_ELDT;
+                eldtMins = _hhmm2mins(computedEt);
             } else {
-                _setBadge(badge, 'delayed-badge', 'DELAYED +' + _msToHHMM(diffMs));
+                eldtMins = (toffMins + eteMinsSeed) % 1440;
             }
+
+            // Current UTC as minutes since midnight
+            var now     = _simNow();
+            var nowMins = now.getUTCHours() * 60 + now.getUTCMinutes() + now.getUTCSeconds() / 60;
+
+            // Remaining minutes, accounting for midnight wrap
+            var rem = ((eldtMins - nowMins + 1440) % 1440);
+            // If rem > 720 it wrapped the wrong way — treat as already arrived
+            if (rem > 720) rem = 0;
+
+            var eldtDisp = String(Math.floor(eldtMins / 60)).padStart(2, '0') +
+                           ':' + String(Math.floor(eldtMins % 60)).padStart(2, '0');
+
+            if (rem <= 0) {
+                _setBadge(badge, 'onblocks-badge', 'ARR ' + eldtDisp);
+            } else {
+                _setBadge(badge, 'airborne-badge', 'ARR IN ' + _fmtMins(rem) + '  \u2192' + eldtDisp + 'Z');
+            }
+            return;
+        }
+
+        // ── No toff entered: show ON TIME / DELAYED vs scheduled departure ───
+        var outTs  = parseInt(badge.dataset.outTs || '0');
+        if (!outTs) { _setBadge(badge, '', 'ON TIME'); return; }
+        var diffMs = _simNow().getTime() - outTs * 1000;   // positive = late
+        if (diffMs <= 0) {
+            _setBadge(badge, '', 'ON TIME \u2212' + _msToHHMM(-diffMs));
+        } else {
+            _setBadge(badge, 'delayed-badge', 'DELAYED +' + _msToHHMM(diffMs));
         }
     }
     window.updateStatusBadge = updateStatusBadge;
 
-    // Tap once &#8594; OUT, tap again &#8594; ON BLOCKS, tap again &#8594; reset
-    window.pillTap = function() {
-        if (_flightState === 'pre') {
-            _flightState = 'airborne';
-            _blockOffMs  = Date.now();
-        } else if (_flightState === 'airborne') {
-            _flightState = 'onblocks';
-            _blockOnMs   = Date.now();
-        } else {
-            _flightState = 'pre';
-            _blockOffMs  = 0;
-            _blockOnMs   = 0;
-        }
-        _saveState();
-        updateStatusBadge();
-    };
+    // Pill is now read-only — tap does nothing (no manual state toggling)
+    window.pillTap = function() { /* no-op */ };
 
     function updateClock() {
         var now = _simNow();
@@ -5210,7 +5219,7 @@ function resetTzOffset() {
     style='background:linear-gradient(90deg,#1a5a8a,#1e70a8);border:none;border-radius:8px;
            color:#fff;font-size:12px;font-weight:700;letter-spacing:.5px;padding:10px 16px;
            cursor:pointer;text-transform:uppercase;white-space:nowrap;flex-shrink:0;'>
-    &#128193; Choose Folder
+    &#128196; Choose PDFs
   </button>
   <div id='fb-folder-label'
     style='flex:1;font-size:12px;color:#4a8aa8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;'>
@@ -5221,9 +5230,8 @@ function resetTzOffset() {
            border-radius:6px;color:#4a8aa8;font-size:11px;padding:6px 10px;cursor:pointer;'>
     Clear
   </button>
-  <!-- webkitdirectory triggers native folder picker popup -->
-  <input type='file' id='fb-folder-input' accept='.pdf' multiple
-         webkitdirectory mozdirectory directory
+  <!-- PDF-only file picker (multi-select, no folder traversal) -->
+  <input type='file' id='fb-folder-input' accept='.pdf,application/pdf' multiple
          style='display:none' onchange='fbFolderSelected(this)'>
 </div>
 
@@ -5285,13 +5293,23 @@ function resetTzOffset() {
     var files = Array.from(input.files || []);
     if (!files.length) return;
 
-    var folderName = (files[0].webkitRelativePath)
-      ? files[0].webkitRelativePath.split('/')[0]
-      : files.length + ' file' + (files.length !== 1 ? 's' : '');
+    // Derive the folder name from the first file's path (if browser exposes it),
+    // otherwise fall back to a count label.
+    var folderName;
+    if (files[0].webkitRelativePath) {{
+      folderName = files[0].webkitRelativePath.split('/')[0];
+    }} else {{
+      // No path info — try to infer from the common directory hint in the name,
+      // or just show the count.
+      folderName = files.length + ' file' + (files.length !== 1 ? 's' : '');
+    }}
 
     _fileMap = {{}};
     files.forEach(function(f) {{
-      if (f.name.toLowerCase().endsWith('.pdf')) _fileMap[f.name] = f;
+      // Guard: only accept genuine PDF files (by name AND MIME if available)
+      var isPdf = f.name.toLowerCase().endsWith('.pdf') ||
+                  (f.type && f.type === 'application/pdf');
+      if (isPdf) _fileMap[f.name] = f;
     }});
 
     var pdfCount = Object.keys(_fileMap).length;
@@ -5304,53 +5322,115 @@ function resetTzOffset() {
     _scanAndRender(Object.keys(_fileMap));
   }};
 
+  // ── Pure client-side PDF scorer (mirrors Python score_and_type exactly) ──
+  function _scoreAndType(name) {{
+    var stem = name.toUpperCase().replace(/\.PDF$/, '');
+    var doc_type = '';
+    var suffixes = ['-RLS', '-WB', '-OFP', '-RELEASE', '-WEIGHTBALANCE'];
+    for (var si = 0; si < suffixes.length; si++) {{
+      if (stem.slice(-suffixes[si].length) === suffixes[si]) {{
+        doc_type = suffixes[si].slice(1);   // strip leading '-'
+        stem = stem.slice(0, -suffixes[si].length);
+        break;
+      }}
+    }}
+    // Collapse separators
+    var core = stem.replace(/[-_ ]/g, '');
+
+    var orig = FLIGHT_ORIG.toUpperCase();
+    var dest = FLIGHT_DEST.toUpperCase();
+    var flt  = FLIGHT_NUM.toUpperCase().replace(/ /g, '');
+
+    function _iata(icao) {{
+      return (icao.length === 4 && 'KEYZ'.indexOf(icao[0]) >= 0) ? icao.slice(1) : icao;
+    }}
+
+    var pair_fwd      = orig + dest;
+    var pair_rev      = dest + orig;
+    var pair_fwd_iata = _iata(orig) + _iata(dest);
+    var pair_rev_iata = _iata(dest) + _iata(orig);
+
+    var s = 0;
+
+    if (core.indexOf(pair_fwd) >= 0 || core.indexOf(pair_fwd_iata) >= 0) {{
+      // Contiguous forward pair — strong match
+      s += 100;
+    }} else {{
+      // Reversed pair present → hard reject (wrong-direction leg in same folder)
+      if (core.indexOf(pair_rev) >= 0 || core.indexOf(pair_rev_iata) >= 0) {{
+        return {{ score: 0, doc_type: '' }};
+      }}
+      // Individual code positions (ICAO preferred, IATA fallback)
+      var o_pos = core.indexOf(orig) >= 0 ? core.indexOf(orig) : core.indexOf(_iata(orig));
+      var d_pos = core.indexOf(dest) >= 0 ? core.indexOf(dest) : core.indexOf(_iata(dest));
+
+      if (o_pos >= 0 && d_pos >= 0 && o_pos < d_pos) {{
+        s += 40;   // both present, correct order, not contiguous
+      }} else if (o_pos >= 0 || d_pos >= 0) {{
+        s += 10;   // only one airport — weak, will be filtered by threshold
+      }} else {{
+        return {{ score: 0, doc_type: '' }};   // neither airport found
+      }}
+    }}
+
+    if (flt && core.indexOf(flt) >= 0) s += 60;
+    if (doc_type === 'RLS' || doc_type === 'WB') s += 10;
+    return {{ score: s, doc_type: doc_type }};
+  }}
+
   function _scanAndRender(pdfNames) {{
     var status = document.getElementById('fb-scan-status');
     status.textContent = 'Scanning\u2026';
     status.style.display = 'block';
 
-    fetch('/match-pdfs', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{ filenames: pdfNames,
-                              orig: FLIGHT_ORIG, dest: FLIGHT_DEST, flight: FLIGHT_NUM }})
-    }})
-    .then(function(r) {{ return r.json(); }})
-    .then(function(resp) {{
-      status.style.display = 'none';
-      var matches = (resp.matches || []).filter(function(m) {{ return m.score >= 20; }});
-      if (!matches.length) {{
-        var fallback = SB_ATTS.length ? SB_ATTS : [];
-        _saveFolderAtts(fallback);
-        _renderAtts(fallback);
+    // Score all filenames client-side — no server needed
+    var scored = [];
+    pdfNames.forEach(function(name) {{
+      var r = _scoreAndType(name);
+      if (r.score >= 40) scored.push({{ name: name, score: r.score, doc_type: r.doc_type }});
+    }});
+    scored.sort(function(a, b) {{ return b.score - a.score; }});
+    status.style.display = 'none';
+
+    // Update label: show matched count out of total PDFs
+    var labelEl = document.getElementById('fb-folder-label');
+    if (labelEl) {{
+      var total = Object.keys(_fileMap).length;
+      var matched = scored.length;
+      var base = labelEl.textContent.split(' \u2014 ')[0];
+      labelEl.textContent = base + ' \u2014 ' +
+        (matched ? matched + ' match' + (matched !== 1 ? 'es' : '') + ' of ' + total + ' PDFs'
+                 : total + ' PDF' + (total !== 1 ? 's' : '') + ' \u2014 none matched');
+    }}
+
+    if (!scored.length) {{
+      var fallback = SB_ATTS.length ? SB_ATTS : [];
+      _saveFolderAtts(fallback);
+      _renderAtts(fallback);
+      return;
+    }}
+
+    var toRead  = scored.slice(0, 4);
+    var pending = toRead.length;
+    var results = new Array(toRead.length);
+
+    toRead.forEach(function(m, i) {{
+      var file = _fileMap[m.name];
+      if (!file) {{
+        results[i] = {{ label: _docLabel(m), name: m.name, doc_type: m.doc_type, uri: '', ext: 'local' }};
+        if (--pending === 0) _finaliseAtts(results);
         return;
       }}
-
-      var toRead  = matches.slice(0, 4);
-      var pending = toRead.length;
-      var results = new Array(toRead.length);
-
-      toRead.forEach(function(m, i) {{
-        var file = _fileMap[m.name];
-        if (!file) {{
-          results[i] = {{ label: _docLabel(m), name: m.name, doc_type: m.doc_type, uri: '', ext: 'local' }};
-          if (--pending === 0) _finaliseAtts(results);
-          return;
-        }}
-        var reader = new FileReader();
-        reader.onload = function(e) {{
-          results[i] = {{ label: _docLabel(m), name: m.name, doc_type: m.doc_type, uri: e.target.result, ext: 'local' }};
-          if (--pending === 0) _finaliseAtts(results);
-        }};
-        reader.onerror = function() {{
-          results[i] = {{ label: m.name, name: m.name, doc_type: m.doc_type, uri: '', ext: 'local' }};
-          if (--pending === 0) _finaliseAtts(results);
-        }};
-        reader.readAsDataURL(file);
-      }});
-    }})
-    .catch(function(err) {{
-      document.getElementById('fb-scan-status').textContent = 'Scan error: ' + err;
+      var reader = new FileReader();
+      reader.onload = function(e) {{
+        results[i] = {{ label: _docLabel(m), name: m.name, doc_type: m.doc_type, uri: e.target.result, ext: 'local' }};
+        if (--pending === 0) _finaliseAtts(results);
+      }};
+      reader.onerror = function() {{
+        results[i] = {{ label: m.name, name: m.name, doc_type: m.doc_type, uri: '', ext: 'local' }};
+        if (--pending === 0) _finaliseAtts(results);
+      }};
+      reader.readAsDataURL(file);
     }});
   }}
 
