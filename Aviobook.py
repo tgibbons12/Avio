@@ -926,17 +926,15 @@ def _build_weather_html(root):
         body += _wx_text(wx['taf'])
         body += _wx_cat('METAR')
         body += _wx_text(wx['metar'])
-        atis_combined = ''
-        if wx['dep_atis']:
-            atis_combined += wx['dep_atis'].strip()
-        if wx['arr_atis'] and wx['arr_atis'] != wx['dep_atis']:
-            atis_combined += ('\n' if atis_combined else '') + wx['arr_atis'].strip()
-        if atis_combined:
-            body += _wx_cat('ATIS')
-            body += _wx_text(atis_combined)
+        # ATIS: always show a live-fetch block; JS will populate it
+        body += _wx_cat('ATIS')
+        body += (f"<div id='wx-atis-{icao.lower()}' "
+                 f"style='padding:6px 12px;font-size:12px;color:#4a8aaa;font-style:italic;'>"
+                 f"Fetching live ATIS\u2026</div>\n")
         return _wx_sub(sub_id, role, title, body)
 
     out = ''
+    _atis_icaos = []   # ICAOs that got an ATIS placeholder, for JS to fetch
 
     # Airport stations in operational order
     STATIONS = [
@@ -946,10 +944,16 @@ def _build_weather_html(root):
         (root.find('enroute_altn'), 'ENRTE ALTN'),
     ]
     for node, role in STATIONS:
-        out += _render_station(_from_node(node), role)
+        wx = _from_node(node)
+        out += _render_station(wx, role)
+        if wx and wx.get('icao'):
+            _atis_icaos.append(wx['icao'].upper())
 
     for i, alt in enumerate(root.findall('alternate'), 1):
-        out += _render_station(_from_node(alt), f'ALTERNATE {i}', i)
+        wx = _from_node(alt)
+        out += _render_station(wx, f'ALTERNATE {i}', i)
+        if wx and wx.get('icao'):
+            _atis_icaos.append(wx['icao'].upper())
 
     # SIGMETs &mdash; navlog FIR order (mirrors MASTERLOG)
     navlog_firs = OrderedDict()
@@ -985,6 +989,92 @@ def _build_weather_html(root):
         else:
             body += "<div class='wx-nil'>NIL &mdash; NO ACTIVE SIGMET FOR THIS FIR</div>\n"
         out += _wx_sub(sub_id, 'SIGMET', f"{_h.escape(fcode)} &mdash; {_h.escape(display)}", body)
+
+    import json as _wjson
+    # Deduplicate while preserving order
+    seen = set()
+    unique_icaos = [x for x in _atis_icaos if not (x in seen or seen.add(x))]
+
+    if unique_icaos:
+        out += """
+<script>
+(function() {
+  var ICAOS = """ + _wjson.dumps(unique_icaos) + """;
+
+  function _wxPre(text) {
+    return "<div class='wx-text'><pre style='margin:0;white-space:pre-wrap;word-break:break-all;"
+         + "font-family:monospace;font-size:12px;'>"
+         + text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+         + "</pre></div>";
+  }
+  function _wxNil(msg) {
+    return "<div class='wx-nil'>" + msg + "</div>";
+  }
+  function _setAtis(icao, html) {
+    var el = document.getElementById('wx-atis-' + icao.toLowerCase());
+    if (el) el.outerHTML = html;
+  }
+
+  // Primary: datis.clowd.io (real-world D-ATIS)
+  function fetchAtis(icao) {
+    fetch('https://datis.clowd.io/api/' + icao)
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(data) {
+        if (!Array.isArray(data)) data = [data];
+        var parts = [];
+        data.forEach(function(entry) {
+          var msg = entry.datis || entry.raw || entry.text || entry.atis || entry.message || '';
+          if (msg) parts.push(msg.trim());
+        });
+        if (parts.length) {
+          _setAtis(icao, _wxPre(parts.join('\\n\\n')));
+        } else {
+          fetchVatsim(icao);
+        }
+      })
+      .catch(function() { fetchVatsim(icao); });
+  }
+
+  // Fallback: VATSIM — single shared fetch for all airports
+  var _vatsimPromise = null;
+  function _getVatsim() {
+    if (!_vatsimPromise) {
+      _vatsimPromise = fetch('https://data.vatsim.net/v3/vatsim-data.json')
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .catch(function() { return null; });
+    }
+    return _vatsimPromise;
+  }
+
+  function fetchVatsim(icao) {
+    _getVatsim().then(function(data) {
+      if (!data) { _setAtis(icao, _wxNil('NO ATIS AVAILABLE')); return; }
+      var atisList = data.atis || [];
+      var parts = [];
+      atisList.forEach(function(entry) {
+        if (typeof entry.callsign === 'string' &&
+            entry.callsign.toUpperCase().indexOf(icao.toUpperCase()) === 0) {
+          var lines = entry.text_atis;
+          if (Array.isArray(lines) && lines.length) {
+            parts.push('VATSIM\\n' + lines.join('\\n'));
+          }
+        }
+      });
+      if (parts.length) {
+        _setAtis(icao, _wxPre(parts.join('\\n\\n')));
+      } else {
+        _setAtis(icao, _wxNil('NO ATIS AVAILABLE'));
+      }
+    });
+  }
+
+  // Stagger fetches slightly so the UI stays responsive
+  ICAOS.forEach(function(icao, i) {
+    setTimeout(function() { fetchAtis(icao); }, i * 150);
+  });
+})();
+</script>
+"""
 
     return out
 
