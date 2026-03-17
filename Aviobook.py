@@ -926,11 +926,12 @@ def _build_weather_html(root):
         body += _wx_text(wx['taf'])
         body += _wx_cat('METAR')
         body += _wx_text(wx['metar'])
-        # ATIS: always show a live-fetch block; JS will populate it
+        # ATIS: stable wrapper div — JS sets innerHTML so refresh works
         body += _wx_cat('ATIS')
-        body += (f"<div id='wx-atis-{icao.lower()}' "
-                 f"style='padding:6px 12px;font-size:12px;color:#4a8aaa;font-style:italic;'>"
-                 f"Fetching live ATIS\u2026</div>\n")
+        body += (f"<div id='wx-atis-wrap-{icao.lower()}'>"
+                 f"<div style='padding:6px 12px;font-size:12px;color:#4a8aaa;font-style:italic;'>"
+                 f"Fetching live ATIS\u2026</div>"
+                 f"</div>\n")
         return _wx_sub(sub_id, role, title, body)
 
     out = ''
@@ -997,28 +998,84 @@ def _build_weather_html(root):
 
     if unique_icaos:
         out += """
+<style>
+.atis-refresh-btn {
+  display:inline-block; margin:4px 12px 8px;
+  background:rgba(30,80,120,0.5); border:1px solid rgba(90,160,210,0.35);
+  border-radius:6px; color:#6ab8d8; font-size:11px; font-weight:600;
+  padding:5px 12px; cursor:pointer; letter-spacing:0.3px;
+}
+.atis-refresh-btn:active { opacity:0.7; }
+.atis-error { padding:6px 12px; font-size:12px; color:#d46060; font-family:monospace; }
+.atis-loading { padding:6px 12px; font-size:12px; color:#4a8aaa; font-style:italic; }
+</style>
 <script>
 (function() {
   var ICAOS = """ + _wjson.dumps(unique_icaos) + """;
 
-  function _wxPre(text) {
-    return "<div class='wx-text'><pre style='margin:0;white-space:pre-wrap;word-break:break-all;"
-         + "font-family:monospace;font-size:12px;'>"
-         + text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-         + "</pre></div>";
+  function _esc(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-  function _wxNil(msg) {
-    return "<div class='wx-nil'>" + msg + "</div>";
+  function _pre(text) {
+    return "<div class='wx-text'><pre style='margin:0;white-space:pre-wrap;"
+         + "word-break:break-all;font-family:monospace;font-size:12px;'>"
+         + _esc(text) + "</pre></div>";
   }
-  function _setAtis(icao, html) {
-    var el = document.getElementById('wx-atis-' + icao.toLowerCase());
-    if (el) el.outerHTML = html;
+  function _refreshBtn(icao) {
+    return "<button class='atis-refresh-btn' onclick='window._atisRefresh(\""+icao+"\")'>&#8635; Refresh ATIS</button>";
+  }
+  function _set(icao, html) {
+    var wrap = document.getElementById('wx-atis-wrap-' + icao.toLowerCase());
+    if (wrap) wrap.innerHTML = html;
+  }
+  function _loading(icao) {
+    _set(icao, "<div class='atis-loading'>Fetching live ATIS\u2026</div>");
   }
 
-  // Primary: datis.clowd.io (real-world D-ATIS)
-  function fetchAtis(icao) {
+  // Shared VATSIM promise — reset on refresh
+  var _vatsimPromise = null;
+  function _getVatsim(force) {
+    if (force || !_vatsimPromise) {
+      _vatsimPromise = fetch('https://data.vatsim.net/v3/vatsim-data.json')
+        .then(function(r) { return r.ok ? r.json() : Promise.reject('HTTP ' + r.status); })
+        .catch(function(e) { return {_err: String(e)}; });
+    }
+    return _vatsimPromise;
+  }
+
+  function fetchVatsim(icao, force) {
+    _getVatsim(force).then(function(data) {
+      if (!data || data._err) {
+        _set(icao, "<div class='atis-error'>D-ATIS unavailable. VATSIM error: "
+             + _esc(data ? data._err : 'no data') + "</div>" + _refreshBtn(icao));
+        return;
+      }
+      var atisList = data.atis || [];
+      var parts = [];
+      atisList.forEach(function(entry) {
+        if (typeof entry.callsign === 'string' &&
+            entry.callsign.toUpperCase().indexOf(icao.toUpperCase()) === 0) {
+          var lines = entry.text_atis;
+          if (Array.isArray(lines) && lines.length) {
+            parts.push('[VATSIM] ' + lines.join(' '));
+          }
+        }
+      });
+      if (parts.length) {
+        _set(icao, _pre(parts.join('\\n\\n')) + _refreshBtn(icao));
+      } else {
+        _set(icao, "<div class='wx-nil'>NO ATIS — airport not on VATSIM</div>" + _refreshBtn(icao));
+      }
+    });
+  }
+
+  function fetchDatis(icao, force) {
+    _loading(icao);
     fetch('https://datis.clowd.io/api/' + icao)
-      .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(r) {
+        if (!r.ok) return Promise.reject('HTTP ' + r.status);
+        return r.json();
+      })
       .then(function(data) {
         if (!Array.isArray(data)) data = [data];
         var parts = [];
@@ -1027,50 +1084,32 @@ def _build_weather_html(root):
           if (msg) parts.push(msg.trim());
         });
         if (parts.length) {
-          _setAtis(icao, _wxPre(parts.join('\\n\\n')));
+          _set(icao, _pre(parts.join('\\n\\n')) + _refreshBtn(icao));
         } else {
-          fetchVatsim(icao);
+          fetchVatsim(icao, force);
         }
       })
-      .catch(function() { fetchVatsim(icao); });
-  }
-
-  // Fallback: VATSIM — single shared fetch for all airports
-  var _vatsimPromise = null;
-  function _getVatsim() {
-    if (!_vatsimPromise) {
-      _vatsimPromise = fetch('https://data.vatsim.net/v3/vatsim-data.json')
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-        .catch(function() { return null; });
-    }
-    return _vatsimPromise;
-  }
-
-  function fetchVatsim(icao) {
-    _getVatsim().then(function(data) {
-      if (!data) { _setAtis(icao, _wxNil('NO ATIS AVAILABLE')); return; }
-      var atisList = data.atis || [];
-      var parts = [];
-      atisList.forEach(function(entry) {
-        if (typeof entry.callsign === 'string' &&
-            entry.callsign.toUpperCase().indexOf(icao.toUpperCase()) === 0) {
-          var lines = entry.text_atis;
-          if (Array.isArray(lines) && lines.length) {
-            parts.push('VATSIM\\n' + lines.join('\\n'));
-          }
-        }
+      .catch(function(err) {
+        // D-ATIS failed — fall through to VATSIM, note the original error
+        fetchVatsim(icao, force);
       });
-      if (parts.length) {
-        _setAtis(icao, _wxPre(parts.join('\\n\\n')));
-      } else {
-        _setAtis(icao, _wxNil('NO ATIS AVAILABLE'));
-      }
-    });
   }
 
-  // Stagger fetches slightly so the UI stays responsive
+  // Global refresh function callable from buttons and a top-level button
+  window._atisRefresh = function(icao) {
+    if (icao) {
+      if (icao === '__all__') {
+        _vatsimPromise = null;   // bust VATSIM cache too
+        ICAOS.forEach(function(ic) { fetchDatis(ic, true); });
+      } else {
+        fetchDatis(icao, true);
+      }
+    }
+  };
+
+  // Initial fetch — stagger so UI stays responsive
   ICAOS.forEach(function(icao, i) {
-    setTimeout(function() { fetchAtis(icao); }, i * 150);
+    setTimeout(function() { fetchDatis(icao, false); }, i * 200);
   });
 })();
 </script>
@@ -3833,6 +3872,10 @@ function finalSubmit() {{
         html += f"<div id='tab-weather' style='{_tab_overlay_style}'>"
         html += "<div class='overlay-inner'>"
         html += "<div style='padding:12px;'>"
+        html += ("<div style='display:flex;justify-content:flex-end;margin-bottom:6px;'>"
+                 "<button class='atis-refresh-btn' style='margin:0;' "
+                 "onclick='if(window._atisRefresh)_atisRefresh(\"__all__\")'>&#8635; Refresh All ATIS</button>"
+                 "</div>")
         html += weather_html
         html += "</div>"   # padding div
         html += "</div>"   # overlay-inner
