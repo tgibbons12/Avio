@@ -7,7 +7,7 @@ import os
 import sys
 import json
 import importlib.util
-from flask import Flask, request, jsonify, send_from_directory, Response
+from flask import Flask, request, jsonify, send_from_directory, Response, session
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 AVIOBOOK_PY = os.path.join(SCRIPT_DIR, "Aviobook.py")
@@ -26,14 +26,16 @@ except Exception as e:
     sys.exit(1)
 
 _store = {
-    "current_ofp": None,
     "archive": [],
     "next_id": 1,
     "last_error": None,
+    "ofp_cache": {},   # ofp_id -> html; looked up via per-user session cookie
 }
 
 STATIC_DIR = os.path.join(SCRIPT_DIR, "static")
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
+# Required for signed session cookies — set SECRET_KEY env var in Railway
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
 
 
 def _build_launcher():
@@ -49,7 +51,7 @@ def _build_launcher():
     if not rows:
         rows = "<div class='empty'>No flights yet — load an OFP to begin.</div>"
 
-    has_current = "true" if _store["current_ofp"] else "false"
+    has_current = "true" if (session.get("ofp_id") in _store["ofp_cache"]) else "false"
 
     return (
         "<!DOCTYPE html>\n"
@@ -228,7 +230,9 @@ def index():
 
 @app.route("/ofp")
 def serve_ofp():
-    if not _store["current_ofp"]:
+    ofp_id   = session.get("ofp_id")
+    ofp_html = _store["ofp_cache"].get(ofp_id) if ofp_id else None
+    if not ofp_html:
         return Response(
             "<html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
             "<style>body{background:#0d1f30;color:#4da8da;font-family:sans-serif;"
@@ -238,7 +242,6 @@ def serve_ofp():
             mimetype="text/html"
         )
     # Inject a home button into the OFP HTML
-    ofp_html = _store["current_ofp"]
     home_button = (
         "<div style='position:fixed;top:20px;right:20px;z-index:10000;'>"
         "<button onclick=\"if(confirm('Return to home?')) { fetch('/clear-ofp', {method:'POST'}).then(() => window.location.href='/'); }\" "
@@ -272,8 +275,10 @@ def serve_archived_ofp(flight_id):
 
 @app.route("/clear-ofp", methods=["POST"])
 def clear_ofp():
-    """Clear the current OFP when user returns home"""
-    _store["current_ofp"] = None
+    """Clear this user's OFP from their session and the cache"""
+    ofp_id = session.pop("ofp_id", None)
+    if ofp_id and ofp_id in _store["ofp_cache"]:
+        del _store["ofp_cache"][ofp_id]
     return jsonify({"ok": True})
 
 
@@ -297,7 +302,6 @@ def generate():
             data["ofp"]["name"] = pilot_name
 
         html = _av.generate_aviobook_html(data, pilot_name=pilot_name, release_folder=None)
-        _store["current_ofp"] = html
 
         from datetime import datetime, timezone
         g    = data.get("general", {})
@@ -327,6 +331,10 @@ def generate():
         if not existing:
             _store["archive"].insert(0, entry)
             _store["next_id"] += 1
+
+        # Store HTML in per-user cache and remember which entry belongs to this session
+        _store["ofp_cache"][entry["id"]] = html
+        session["ofp_id"] = entry["id"]
 
         print(f"  ✔  OFP generated ({len(html):,} bytes) — {orig}→{dest} {flt}")
         return jsonify({"ok": True, "ofp_url": "/ofp"})
