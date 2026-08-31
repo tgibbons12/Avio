@@ -1630,10 +1630,20 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
     css = """
     <style>
         * { box-sizing: border-box; }
+        /* The page runs viewport-fit=cover with a black-translucent status
+           bar, so it extends INTO the top safe area. body's background does
+           not paint there, nor into the rubber-band overscroll area, so
+           without a background on html both show the browser default white
+           -- the pale band that appeared above the top bar on iPad. */
+        html {
+            background: #0b1f30;
+            overscroll-behavior-y: none;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Arial, sans-serif;
             background: linear-gradient(160deg, #13405a 0%, #1a4a61 50%, #163d55 100%);
             background-attachment: fixed;
+            overscroll-behavior-y: none;
             color: #eaf6ff;
             padding: 0;
             margin: 0;
@@ -2570,8 +2580,8 @@ window.addEventListener('load', function() {
         (175, "OFF",  sched_off_utc, *_local_time(sched_off_utc, orig_tz)),
         (270, "ETOT", sched_off_utc, *_local_time(sched_off_utc, orig_tz)),
         (730, "ELDT", est_in_utc,    *_local_time(est_in_utc,    dest_tz)),
-        (825, "IN",   est_in_utc,    *_local_time(est_in_utc,    dest_tz)),
-        (920, "IN",   sched_in_utc,  *_local_time(sched_in_utc,  dest_tz)),
+        (825, "ETA",  est_in_utc,    *_local_time(est_in_utc,    dest_tz)),
+        (920, "STA",  sched_in_utc,  *_local_time(sched_in_utc,  dest_tz)),
     ]
     svg  = ("<svg viewBox='0 0 1000 160' xmlns='http://www.w3.org/2000/svg' "
             "style='width:100%;display:block;margin:2px 0 0 0;'>"
