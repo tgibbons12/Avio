@@ -2810,7 +2810,7 @@ window.addEventListener('load', function() {
     if alternates:
         html += "<div class='section'>"
         html += "  <div class='section-header' id='sec-alternate' onclick='toggleSection(\"sec-alternate\")'>"
-        html += "    <span class='section-icon'>&#9992;</span> Alternate Airports"
+        html += "    <span class='section-icon'>" + icon("tower") + "</span> Alternate Airports"
         html += "    <span class='collapse-arrow'>&#9660;</span>"
         html += "  </div>"
         html += "  <div class='section-body' id='sec-alternate-body'>"
