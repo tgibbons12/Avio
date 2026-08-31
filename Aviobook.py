@@ -1588,6 +1588,64 @@ def scan_release_folder(orig_icao, dest_icao, flight_number, folder=None):
 
     return results
 
+# --- inline SVG icon set -----------------------------------------------
+# Replaces the HTML entities that were standing in as icons. On iOS most of
+# those (gear, warning, plane, clock, headphones, book...) get emoji
+# presentation, so they rendered as full-colour glyphs at inconsistent
+# weights and baselines rather than as UI icons. These are stroked paths on
+# a 24x24 grid using currentColor, so they inherit the colour the
+# surrounding element already sets and stay aligned with the text.
+_ICON_PATHS = {
+    "clock":     "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3.5 2'/>",
+    "headset":   "<path d='M4 13v-1a8 8 0 0 1 16 0v1'/>"
+                 "<rect x='2.5' y='13' width='4.5' height='6' rx='1.6'/>"
+                 "<rect x='17' y='13' width='4.5' height='6' rx='1.6'/>"
+                 "<path d='M20 19v.8a2.7 2.7 0 0 1-2.7 2.7H13'/>",
+    "route":     "<circle cx='5.5' cy='5.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/>"
+                 "<path d='M8 5.5h6.5a4 4 0 0 1 0 8H9.5a4 4 0 0 0 0 8H16'/>",
+    "fuel":      "<path d='M12 3.5s5.5 5.6 5.5 9.4a5.5 5.5 0 1 1-11 0C6.5 9.1 12 3.5 12 3.5z'/>",
+    "scale":     "<path d='M12 4v16M7 20h10M4.5 9h15'/><path d='M4.5 9 2 15h5z'/><path d='M19.5 9 17 15h5z'/>",
+    "user":      "<circle cx='12' cy='8' r='3.6'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/>",
+    "doc":       "<path d='M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5z'/>"
+                 "<path d='M14 3v4.5h4.5'/><path d='M9 12.5h6M9 16h6'/>",
+    "calendar":  "<rect x='3.5' y='5' width='17' height='16' rx='2'/><path d='M3.5 10h17M8 3v4M16 3v4'/>",
+    "pencil":    "<path d='M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z'/><path d='M14.5 6.5l3 3'/>",
+    "bell":      "<path d='M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z'/><path d='M10 20a2 2 0 0 0 4 0'/>",
+    "gear":      "<path d='M5 6.5h14M5 12h14M5 17.5h14'/>"
+                 "<circle cx='9' cy='6.5' r='2.1'/><circle cx='15' cy='12' r='2.1'/>"
+                 "<circle cx='8' cy='17.5' r='2.1'/>",
+    "plane":     "<path d='M21 15.5v-1.7l-7.5-4.4V4.2a1.5 1.5 0 0 0-3 0v5.2L3 13.8v1.7l7.5-2.2v4.5l-2 1.4V21l3.5-1 3.5 1v-1.8l-2-1.4v-4.5z'/>",
+    "book":      "<path d='M4 4.5A1.5 1.5 0 0 1 5.5 3H18a1.5 1.5 0 0 1 1.5 1.5V21H5.5A1.5 1.5 0 0 1 4 19.5z'/>"
+                 "<path d='M4 17.5h15.5'/><path d='M8 3v14.5'/>",
+    "star":      "<path d='m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9L3.5 9.7l5.9-.8z'/>",
+    "list":      "<path d='M9.5 6.5h10.5M9.5 12h10.5M9.5 17.5h10.5'/>"
+                 "<circle cx='4.8' cy='6.5' r='1.3'/><circle cx='4.8' cy='12' r='1.3'/>"
+                 "<circle cx='4.8' cy='17.5' r='1.3'/>",
+    "clipboard": "<rect x='5' y='4.5' width='14' height='16.5' rx='1.8'/>"
+                 "<rect x='9' y='2.5' width='6' height='4' rx='1.2'/><path d='M9 11h6M9 15h6'/>",
+    "tower":     "<path d='M9 9.5h6l-1 4h-4z'/><path d='M9.2 9.5 12 5.5l2.8 4'/>"
+                 "<path d='M12 5.5V3'/><path d='M10 13.5 8.8 21M14 13.5 15.2 21'/>"
+                 "<path d='M7 21h10'/>",
+    "pin":       "<path d='M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 1 0-13 0C5.5 14.9 12 21 12 21z'/>"
+                 "<circle cx='12' cy='10.5' r='2.4'/>",
+    "folder":    "<path d='M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z'/>",
+    "warning":   "<path d='M12 3.8 21.2 20H2.8z'/><path d='M12 10v4.5M12 17.4h.01'/>",
+    "copy":      "<rect x='8.5' y='8.5' width='12' height='12' rx='1.8'/>"
+                 "<path d='M15.5 5.5H5a1.5 1.5 0 0 0-1.5 1.5v10.5'/>",
+}
+
+
+def icon(name, size=18, stroke=1.7):
+    """Inline SVG for `name`, coloured by whatever sets currentColor."""
+    d = _ICON_PATHS.get(name)
+    if not d:
+        return ""
+    return (f"<svg viewBox='0 0 24 24' width='{size}' height='{size}' fill='none' "
+            f"stroke='currentColor' stroke-width='{stroke}' stroke-linecap='round' "
+            f"stroke-linejoin='round' aria-hidden='true' "
+            f"style='display:block;flex-shrink:0;'>{d}</svg>")
+
+
 def generate_aviobook_html(data, pilot_name="", release_folder=None):
     # Resolve captain name: user-supplied pilot_name wins over SimBrief crew/cpt
     c_raw = data.get('crew', {})
@@ -1810,10 +1868,11 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
         .section-header:active { background: rgba(90,174,239,0.06); }
         .section-icon {
             color: #7ad8fd;
-            font-size: 17px;
             width: 22px;
-            text-align: center;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .section-header .collapse-arrow {
             margin-left: auto;
@@ -2272,7 +2331,8 @@ def generate_aviobook_html(data, pilot_name="", release_folder=None):
             cursor: pointer;
         }
         .bottom-nav-item.active { color: #7ad8fd; }
-        .bottom-nav-icon { font-size: 18px; }
+        .bottom-nav-icon { display:flex; align-items:center; justify-content:center;
+            height: 18px; }
         @media (max-width: 600px) {
             .fw-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -2437,7 +2497,7 @@ window.addEventListener('load', function() {
              f"<span class='icao'>{a['origin']['icao']}</span>"
              f"<span style='color:#5ab8e0;font-size:12px;'>&#9992;</span>"
              f"<span class='icao'>{a['destination']['icao']}</span>"
-             f"<span style='color:#4a7a96;font-size:12px;margin-left:4px;'>&#128197;</span>"
+             f"<span style='color:#4a7a96;margin-left:4px;display:inline-flex;vertical-align:-3px;'>" + icon("calendar", 14) + "</span>"
              f"<span class='times'>{_dep_label}</span>"
              f"<span class='arrow'>&#8250;</span>"
              f"<span class='times'>{sched_in_utc}</span>")
@@ -2450,15 +2510,15 @@ window.addEventListener('load', function() {
     # &#9472;&#9472; RIGHT icons &mdash; vertically centered across both rows &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='top-bar-icons'>"
     html += ("<button class='top-bar-icon-btn' id='sign-btn' onclick='if(window.openSign)openSign()' title='Sign OFP'>"
-             "&#9998;</button>")    # &#9998; pencil
+             "" + icon("pencil", 17) + "</button>")    # &#9998; pencil
     html += ("<button class='top-bar-icon-btn' title='Notifications'>"
-             "&#128276;</button>")  #  bell
+             "" + icon("bell", 17) + "</button>")  #  bell
     html += ("<button class='top-bar-icon-btn' title='Profile'>"
              "<span style='font-size:16px;'>&#9711;</span>"
              "<span class='badge'>2</span>"
              "</button>")
     html += ("<button class='top-bar-icon-btn' onclick='openSettings()' title='Settings' id='settings-btn'>"
-             "&#9881;</button>")   # &#9881; gear
+             "" + icon("gear", 17) + "</button>")   # &#9881; gear
     html += "</div>"
 
     html += "</div>"  # outer flex row
@@ -2504,7 +2564,7 @@ window.addEventListener('load', function() {
     # &#9472;&#9472; SCHEDULE SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-schedule' onclick='toggleSection(\"sec-schedule\")'>"
-    html += "    <span class='section-icon'>&#9201;</span> Schedule"
+    html += "    <span class='section-icon'>" + icon("clock") + "</span> Schedule"
     html += "    <span class='collapse-arrow'>&#9660;</span>"
     html += "  </div>"
     html += "  <div class='section-body' id='sec-schedule-body' style='padding:8px 16px 10px 16px;'>"
@@ -2580,8 +2640,8 @@ window.addEventListener('load', function() {
         (175, "OFF",  sched_off_utc, *_local_time(sched_off_utc, orig_tz)),
         (270, "ETOT", sched_off_utc, *_local_time(sched_off_utc, orig_tz)),
         (730, "ELDT", est_in_utc,    *_local_time(est_in_utc,    dest_tz)),
-        (825, "ETA",  est_in_utc,    *_local_time(est_in_utc,    dest_tz)),
-        (920, "STA",  sched_in_utc,  *_local_time(sched_in_utc,  dest_tz)),
+        (825, "ON",   est_in_utc,    *_local_time(est_in_utc,    dest_tz)),
+        (920, "IN",   sched_in_utc,  *_local_time(sched_in_utc,  dest_tz)),
     ]
     svg  = ("<svg viewBox='0 0 1000 160' xmlns='http://www.w3.org/2000/svg' "
             "style='width:100%;display:block;margin:2px 0 0 0;'>"
@@ -2657,7 +2717,7 @@ window.addEventListener('load', function() {
     # &#9472;&#9472; DISPATCH SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-dispatch' onclick='toggleSection(\"sec-dispatch\")'>"
-    html += "    <span class='section-icon'>&#127911;</span> Dispatch"
+    html += "    <span class='section-icon'>" + icon("headset") + "</span> Dispatch"
     html += "    <span class='collapse-arrow'>&#9660;</span>"
     html += "  </div>"
     html += "  <div class='section-body' id='sec-dispatch-body'>"
@@ -2673,7 +2733,7 @@ window.addEventListener('load', function() {
     # &#9472;&#9472; ROUTE SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-route' onclick='toggleSection(\"sec-route\")'>"
-    html += "    <span class='section-icon'>&#9685;</span> Route"
+    html += "    <span class='section-icon'>" + icon("route") + "</span> Route"
     html += "    <span class='collapse-arrow'>&#9660;</span>"
     html += "  </div>"
     html += "  <div class='section-body' id='sec-route-body'>"
@@ -2695,7 +2755,7 @@ window.addEventListener('load', function() {
     f = data['fuel']
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-fuel' onclick='toggleSection(\"sec-fuel\")'>"
-    html += "    <span class='section-icon'>&#9651;</span> Fuel"
+    html += "    <span class='section-icon'>" + icon("fuel") + "</span> Fuel"
     html += "    <span class='collapse-arrow'>&#9660;</span>"
     html += "  </div>"
     html += "  <div class='section-body' id='sec-fuel-body'>"
@@ -2730,7 +2790,7 @@ window.addEventListener('load', function() {
     w = data['weights']
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-weights' onclick='toggleSection(\"sec-weights\")'>"
-    html += "    <span class='section-icon'>&#9878;</span> Weights"
+    html += "    <span class='section-icon'>" + icon("scale") + "</span> Weights"
     html += "    <span class='collapse-arrow'>&#9660;</span>"
     html += "  </div>"
     html += "  <div class='section-body' id='sec-weights-body'>"
@@ -2807,7 +2867,7 @@ window.addEventListener('load', function() {
     # &#9472;&#9472; CREW SECTION &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='section'>"
     html += "  <div class='section-header' id='sec-crew' onclick='toggleSection(\"sec-crew\")'>"
-    html += "    <span class='section-icon'>&#128100;</span> Crew"
+    html += "    <span class='section-icon'>" + icon("user") + "</span> Crew"
     html += "    <span class='collapse-arrow'>&#9660;</span>"
     html += "  </div>"
     html += "  <div class='section-body' id='sec-crew-body'>"
@@ -2823,7 +2883,7 @@ window.addEventListener('load', function() {
     if data.get('files'):
         html += "<div class='section'>"
         html += "  <div class='section-header' id='sec-documents' onclick='toggleSection(\"sec-documents\")'>"
-        html += "    <span class='section-icon'>&#128196;</span> Documents"
+        html += "    <span class='section-icon'>" + icon("doc") + "</span> Documents"
         html += "    <span class='collapse-arrow'>&#9660;</span>"
         html += "  </div>"
         html += "  <div class='section-body' id='sec-documents-body'>"
@@ -3976,15 +4036,15 @@ function finalSubmit() {{
     # &#9472;&#9472; BOTTOM NAV BAR (Aviobook style) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='bottom-nav'>"
     for icon, label, section, active, link in [
-        ("&#9992;",        "OFP",        "ofp",        False, None),
-        ("&#9741;",  "BRIEFING",   "briefing",   True,  None),
-        ("&#9992;",  "AIRPORTS",   "airports",   False, None),
-        ("&#9999;",  "NOTES",      "notes",      False, None),
-        ("&#9992;",  "FOREFLIGHT", "fdpro",      False, _ff_url),
-        ("&#128218;","LIBRARY",    "library",    False, None),
-        ("&#9733;",  "FORMS",      "forms",      False, None),
-        ("&#9776;",  "CHECKLISTS", "checklists", False, None),
-        ("&#9881;",  "TOOLS",      "tools",      False, None),
+        (icon("doc"),       "OFP",        "ofp",        False, None),
+        (icon("clipboard"), "BRIEFING",   "briefing",   True,  None),
+        (icon("tower"),     "AIRPORTS",   "airports",   False, None),
+        (icon("pencil"),    "NOTES",      "notes",      False, None),
+        (icon("plane"),     "FOREFLIGHT", "fdpro",      False, _ff_url),
+        (icon("book"),      "LIBRARY",    "library",    False, None),
+        (icon("star"),      "FORMS",      "forms",      False, None),
+        (icon("list"),      "CHECKLISTS", "checklists", False, None),
+        (icon("gear"),      "TOOLS",      "tools",      False, None),
     ]:
         cls = " active" if active else ""
         if link:

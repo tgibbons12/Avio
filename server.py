@@ -179,14 +179,44 @@ def logout():
 # --- flights -----------------------------------------------------------
 
 def _home_button(html, href="/"):
-    btn = (
-        "<div style=\"position:fixed;top:calc(20px + env(safe-area-inset-top));right:20px;"
-        "z-index:10000;\"><a href=\"" + href + "\" style=\"background:#1a6a9a;color:#fff;"
-        "border-radius:6px;padding:10px 16px;font-weight:700;font-size:12px;letter-spacing:.5px;"
-        "text-transform:uppercase;font-family:-apple-system,sans-serif;text-decoration:none;"
-        "display:inline-block;\">&larr; Home</a></div>"
+    """Overlay a Home control on a rendered OFP page.
+
+    It is position:fixed, so it sits above the page's own top bar and
+    nothing below it reflows — in portrait that put it straight on top of
+    the attachment icon and the tab strip. The injected CSS reserves a
+    matching gutter on the three rows that run the full width, so the
+    button has somewhere of its own to sit at any width, and shrinks it
+    on narrow screens where that gutter is most expensive.
+    """
+    css = (
+        "<style>"
+        ":root{--home-btn-w:104px;}"
+        ".top-bar-inner,.top-bar-row2,.tab-bar{padding-right:"
+        "calc(var(--home-btn-w) + 16px) !important;}"
+        "#av-home{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));"
+        "right:16px;z-index:10000;background:#1a6a9a;color:#fff;border-radius:6px;"
+        "padding:9px 14px;font-weight:700;font-size:12px;letter-spacing:.5px;"
+        "text-transform:uppercase;text-decoration:none;display:inline-flex;"
+        "align-items:center;gap:6px;font-family:-apple-system,BlinkMacSystemFont,"
+        "'SF Pro Text',Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.35);}"
+        "#av-home:active{background:#155a83;}"
+        "@media (max-width:820px){:root{--home-btn-w:52px;}"
+        "#av-home{padding:9px 11px;}#av-home .lbl{display:none;}}"
+        "</style>"
     )
-    return html.replace("</body>", btn + "</body>") if "</body>" in html else html + btn
+    btn = (
+        f'<a id="av-home" href="{href}" aria-label="Home">'
+        '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" '
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        '<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/>'
+        '<path d="M9.75 20v-5.5h4.5V20"/></svg>'
+        '<span class="lbl">Home</span></a>'
+    )
+    if "</head>" in html:
+        html = html.replace("</head>", css + "</head>", 1)
+    else:
+        html = css + html
+    return html.replace("</body>", btn + "</body>", 1) if "</body>" in html else html + btn
 
 
 @app.route("/")
