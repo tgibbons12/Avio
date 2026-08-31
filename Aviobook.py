@@ -1635,15 +1635,25 @@ _ICON_PATHS = {
 }
 
 
-def icon(name, size=18, stroke=1.7):
-    """Inline SVG for `name`, coloured by whatever sets currentColor."""
+def icon(name, size=18, stroke=1.7, inline=False, q="'"):
+    """Inline SVG for `name`, coloured by whatever sets currentColor.
+
+    inline=True sits the glyph in a run of text rather than in a flex slot.
+    q selects the attribute quote character — several call sites embed the
+    result inside a single-quoted JavaScript string literal, where the
+    default quoting would terminate the string early.
+    """
     d = _ICON_PATHS.get(name)
     if not d:
         return ""
-    return (f"<svg viewBox='0 0 24 24' width='{size}' height='{size}' fill='none' "
-            f"stroke='currentColor' stroke-width='{stroke}' stroke-linecap='round' "
-            f"stroke-linejoin='round' aria-hidden='true' "
-            f"style='display:block;flex-shrink:0;'>{d}</svg>")
+    if q != "'":
+        d = d.replace("'", q)
+    style = ("display:inline-block;vertical-align:-2px;" if inline
+             else "display:block;flex-shrink:0;")
+    return (f"<svg viewBox={q}0 0 24 24{q} width={q}{size}{q} height={q}{size}{q} "
+            f"fill={q}none{q} stroke={q}currentColor{q} stroke-width={q}{stroke}{q} "
+            f"stroke-linecap={q}round{q} stroke-linejoin={q}round{q} aria-hidden={q}true{q} "
+            f"style={q}{style}{q}>{d}</svg>")
 
 
 def generate_aviobook_html(data, pilot_name="", release_folder=None):
@@ -2476,7 +2486,7 @@ window.addEventListener('load', function() {
 
     # Center: flight + aircraft  &#9992;SWA677&middot;&#8855;N766NC &ndash; B737-7H4(WL)
     html += ("<div style='display:flex;justify-content:center;align-items:center;gap:5px;'>"
-             "<span style='color:#5ab8e0;font-size:14px;'>&#9992;</span>"
+             "<span style='color:#5ab8e0;'>" + icon("plane", 14, inline=True) + "</span>"
              f"<span class='top-bar-flt'>{g['icao_airline']}{g['flight_number']}</span>"
              "<span style='color:#7ab8d4;font-size:13px;'>&#xB7;</span>"
              "<span style='color:#4db8f5;font-size:13px;'>&#8855;</span>"
@@ -2493,9 +2503,9 @@ window.addEventListener('load', function() {
     html += ("<a href='/' style='color:#3a7a9a;font-size:18px;font-weight:300;line-height:1;"
              "text-decoration:none;padding:0 4px;flex-shrink:0;' title='Back to Launcher'>&#8249;</a>")
     html += "<div style='display:flex;align-items:center;gap:6px;'>"
-    html += (f"<span style='color:#5ab8e0;font-size:12px;'>&#9992;</span>"
+    html += (f"<span style='color:#5ab8e0;'>" + icon("plane", 12, inline=True) + "</span>"
              f"<span class='icao'>{a['origin']['icao']}</span>"
-             f"<span style='color:#5ab8e0;font-size:12px;'>&#9992;</span>"
+             f"<span style='color:#5ab8e0;'>" + icon("plane", 12, inline=True) + "</span>"
              f"<span class='icao'>{a['destination']['icao']}</span>"
              f"<span style='color:#4a7a96;margin-left:4px;display:inline-flex;vertical-align:-3px;'>" + icon("calendar", 14) + "</span>"
              f"<span class='times'>{_dep_label}</span>"
@@ -3780,7 +3790,7 @@ function finalSubmit() {{
         f"<div id='nl-unsigned-bar' style='display:flex;align-items:center;gap:10px;"
         f"background:rgba(180,120,0,0.18);border:1px solid rgba(220,160,0,0.3);border-radius:7px;"
         f"padding:8px 14px;margin-bottom:4px;'>"
-        f"<span style='font-size:14px;color:#ffd060;'>&#9888;</span>"
+        f"<span style='color:#ffd060;'>" + icon("warning", 14, inline=True) + "</span>"
         f"<span style='font-size:12px;font-weight:600;color:#ffd060;letter-spacing:.2px;"
         f"font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;'>"
         f"OFP RLS {_nl_rls} not yet accepted</span>"
@@ -3924,7 +3934,7 @@ function finalSubmit() {{
             f"<div class='nl-c nl-plnd p-fuel'></div>"
             f"<div class='nl-c nl-act a-fuel'></div>"
             f"<div class='nl-trend t-fuel'></div>"
-            f"<div class='nl-swipe-bar'><span class='nl-swipe-clock'>&#9200;</span></div>"
+            f"<div class='nl-swipe-bar'><span class='nl-swipe-clock'>" + icon("clock", 15, inline=True) + "</span></div>"
             f"</div>"
             f"{detail_html}"
             f"</div>\n"
@@ -4025,7 +4035,7 @@ function finalSubmit() {{
         html += "<div class='overlay-inner'>"
         html += "<div style='padding:12px;'>"
         html += "  <div id='pinned-notams-bar' class='notam-pinned-bar' style='display:none;'>"
-        html += "    <div class='notam-pinned-title'>&#128204; PINNED NOTAMs</div>"
+        html += "    <div class='notam-pinned-title'>" + icon("pin", 14, inline=True) + " PINNED NOTAMs</div>"
         html += "    <div class='notam-pinned-body' id='pinned-notams-list'></div>"
         html += "  </div>"
         html += notams_html
@@ -4035,7 +4045,7 @@ function finalSubmit() {{
 
     # &#9472;&#9472; BOTTOM NAV BAR (Aviobook style) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
     html += "<div class='bottom-nav'>"
-    for icon, label, section, active, link in [
+    for nav_icon, label, section, active, link in [
         (icon("doc"),       "OFP",        "ofp",        False, None),
         (icon("clipboard"), "BRIEFING",   "briefing",   True,  None),
         (icon("tower"),     "AIRPORTS",   "airports",   False, None),
@@ -4051,12 +4061,12 @@ function finalSubmit() {{
             html += (f"<div class='bottom-nav-item{cls}' id='bnav-{section}' "
                      f"onclick=\"window.location.href='{link}'\" "
                      f"style='cursor:pointer;'>")
-            html += f"  <span class='bottom-nav-icon'>{icon}</span>"
+            html += f"  <span class='bottom-nav-icon'>{nav_icon}</span>"
             html += f"  <span>{label}</span>"
             html += "</div>"
         else:
             html += f"<div class='bottom-nav-item{cls}' id='bnav-{section}' onclick='switchSection(\"{section}\")'>"
-            html += f"  <span class='bottom-nav-icon'>{icon}</span>"
+            html += f"  <span class='bottom-nav-icon'>{nav_icon}</span>"
             html += f"  <span>{label}</span>"
             html += "</div>"
     html += "</div>"
@@ -5492,7 +5502,7 @@ function resetTzOffset() {
     style='background:linear-gradient(90deg,#1a5a8a,#1e70a8);border:none;border-radius:8px;
            color:#fff;font-size:12px;font-weight:700;letter-spacing:.5px;padding:10px 16px;
            cursor:pointer;text-transform:uppercase;white-space:nowrap;flex-shrink:0;'>
-    &#128193; Choose Folder
+    {icon("folder", 15, inline=True)} Choose Folder
   </button>
   <div id='fb-folder-label'
     style='flex:1;font-size:12px;color:#4a8aa8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;'>
@@ -5783,10 +5793,11 @@ function resetTzOffset() {
       card.className = 'fb-att-card';
       card.setAttribute('data-search', (displayName + ' ' + fileName).toLowerCase());
 
+      var ICON_DOC = '@@ICON:doc:15:js@@';
       var previewId = 'fb-prev-' + Math.random().toString(36).slice(2);
       card.innerHTML =
         '<div class="fb-att-preview" id="' + previewId + '">' +
-          '<span class="fb-att-preview-icon">&#128196;</span>' +
+          '<span class="fb-att-preview-icon">' + ICON_DOC + '</span>' +
           '<canvas style="display:none;width:100%;height:100%;object-fit:cover;"></canvas>' +
         '</div>' +
         '<div class="fb-att-info">' +
@@ -6141,7 +6152,7 @@ function resetTzOffset() {
         html += ("<div style='margin:0 16px 16px;background:linear-gradient(135deg,#1a4a61,#21546d);"
                  "border:1px solid rgba(255,180,60,0.3);border-radius:8px;padding:14px;'>"
                  "<div style='color:#ffc060;font-size:11px;font-weight:700;letter-spacing:1px;"
-                 "margin-bottom:8px;'>&#9888; MEL / CDL</div>"
+                 "margin-bottom:8px;'>" + icon("warning", 15, inline=True) + " MEL / CDL</div>"
                  f"<div style='color:#e8f6ff;font-size:12px;font-family:monospace;"
                  f"white-space:pre-wrap;line-height:1.6;'>{_html_escape.escape(g['mel_cdl'])}</div>"
                  "</div>")
@@ -6159,7 +6170,7 @@ function resetTzOffset() {
         html += ("<div style='margin:0 16px 16px;background:linear-gradient(135deg,#1a4a61,#21546d);"
                  "border:1px solid rgba(90,174,239,0.2);border-radius:8px;padding:14px;'>"
                  "<div style='color:#5ab8e0;font-size:11px;font-weight:700;letter-spacing:1px;"
-                 "margin-bottom:8px;'>&#128221; GENERAL REMARKS</div>"
+                 "margin-bottom:8px;'>" + icon("doc", 15, inline=True) + " GENERAL REMARKS</div>"
                  f"<div style='color:#e8f6ff;font-size:12px;font-family:monospace;"
                  f"white-space:pre-wrap;line-height:1.6;'>{_html_escape.escape(g['remarks'])}</div>"
                  "</div>")
@@ -6167,7 +6178,7 @@ function resetTzOffset() {
     html += ("<div style='margin:0 16px 16px;background:linear-gradient(135deg,#1a4a61,#21546d);"
              "border:1px solid rgba(90,174,239,0.2);border-radius:8px;padding:14px;'>"
              "<div style='color:#5ab8e0;font-size:11px;font-weight:700;letter-spacing:1px;"
-             "margin-bottom:10px;'>&#9992; CRUISE DATA</div>")
+             "margin-bottom:10px;'>" + icon("plane", 15, inline=True) + " CRUISE DATA</div>")
     for lbl, val in [
         ("CRUISE PROFILE", g.get('cruise_profile','')),
         ("INITIAL ALT", g.get('initial_altitude','')),
@@ -6205,13 +6216,13 @@ function resetTzOffset() {
              + _atc_route_js + ").then(function(){"
              "var b=document.getElementById('atc-copy-btn');"
              "b.innerHTML='&#10003; COPIED';b.style.background='#1a8a4a';"
-             "setTimeout(function(){b.innerHTML='&#128272; COPY ROUTE';"
+             "setTimeout(function(){b.innerHTML='" + icon("copy", 14, inline=True, q='\\"') + " COPY ROUTE';"
              "b.style.background='';},2000);})\" "
              "id='atc-copy-btn' "
              "style='display:flex;align-items:center;gap:6px;"
              "background:rgba(30,90,130,0.5);border:1.5px solid rgba(90,174,239,0.4);"
              "border-radius:8px;color:#d8f0ff;font-size:12px;font-weight:700;"
-             "letter-spacing:0.5px;padding:8px 14px;cursor:pointer;'>&#128272; COPY ROUTE</button>"
+             "letter-spacing:0.5px;padding:8px 14px;cursor:pointer;'>" + icon("copy", 14, inline=True) + " COPY ROUTE</button>"
              "</div>")
 
     # Main data card
@@ -6488,13 +6499,13 @@ function resetTzOffset() {
   z-index:1250;background:rgba(8,28,42,0.97);overflow-y:auto;padding-top:calc(var(--topbar-h,88px) + var(--banner-h,0px));'>
   <div style='max-width:480px;margin:0 auto;padding:24px 16px 48px;'>
     <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;'>
-      <span style='color:#e8f6ff;font-size:17px;font-weight:700;letter-spacing:0.5px;'>&#9881; SETTINGS</span>
+      <span style='color:#e8f6ff;font-size:17px;font-weight:700;letter-spacing:0.5px;'>@@ICON:gear:16@@ SETTINGS</span>
       <button onclick='closeSettings()' style='background:none;border:none;color:#7ab8d4;font-size:22px;cursor:pointer;line-height:1;padding:4px 8px;'>&#10005;</button>
     </div>
 
     <!-- Timezone section -->
     <div style='background:linear-gradient(135deg,#0e3a52,#1a4a61);border:1px solid #1e5a7a;border-radius:10px;padding:20px;margin-bottom:16px;'>
-      <div style='color:#5ab8e0;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:14px;'>&#128336; SIMULATOR CLOCK OFFSET</div>
+      <div style='color:#5ab8e0;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:14px;'>@@ICON:clock:14@@ SIMULATOR CLOCK OFFSET</div>
       <div style='color:#a0c8d8;font-size:12px;line-height:1.5;margin-bottom:16px;'>
         Shift the displayed clock and &ldquo;now&rdquo; reference by a fixed number of hours.
         Useful when flying in a different timezone in the sim.
@@ -6813,6 +6824,20 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 """
     html += "</body></html>\n"
+
+    # Resolve @@ICON:name:size[:js]@@ placeholders in one pass over the
+    # finished document. Tokens rather than direct icon() calls because
+    # these sit inside plain triple-quoted blocks, where " + icon(...) + "
+    # is literal text, or inside single-quoted JavaScript string literals,
+    # where the SVG's own apostrophes would terminate the string early.
+    # Both mistakes shipped once; this is the shape that cannot repeat them.
+    import re as _re_icon
+    html = _re_icon.sub(
+        r"@@ICON:([a-z]+):(\d+)(:js)?@@",
+        lambda mm: icon(mm.group(1), int(mm.group(2)), inline=True,
+                        q='"' if mm.group(3) else "'"),
+        html)
+
     return html
 
 
