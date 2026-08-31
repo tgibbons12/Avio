@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>{% block title %}Aviobook{% endblock %}</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d3550">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{background:#0d3550;overscroll-behavior-y:none;}
+  body{background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);
+    min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+    overscroll-behavior-y:none;color:#eaf6ff;
+    padding-bottom:env(safe-area-inset-bottom);}
+
+  .header{background:rgba(0,0,0,.3);padding:18px 20px 14px;
+    padding-top:calc(18px + env(safe-area-inset-top));
+    border-bottom:1px solid rgba(90,174,239,.18);display:flex;align-items:center;gap:12px;}
+  .header-logo{font-size:20px;font-weight:700;color:#7ad8fd;letter-spacing:1px;}
+  .header-sub{font-size:11px;color:#4a7a96;letter-spacing:.5px;margin-top:2px;}
+  .btn-ghost{margin-left:auto;background:transparent;border:1px solid rgba(90,174,239,.3);
+    border-radius:6px;color:#4a8aa8;font-size:11px;font-weight:700;letter-spacing:.5px;
+    padding:8px 14px;cursor:pointer;text-transform:uppercase;font-family:inherit;
+    text-decoration:none;display:inline-block;}
+  .btn-ghost:active{background:rgba(90,174,239,.1);}
+
+  .wrap{display:flex;align-items:center;justify-content:center;
+    min-height:calc(100vh - 160px);padding:24px 20px;}
+  .card{background:linear-gradient(160deg,#1a4a61 0%,#21546D 60%,#1c4a60 100%);
+    border:1px solid rgba(90,174,239,.18);border-radius:14px;padding:28px 24px;
+    width:100%;max-width:380px;}
+  .card-title{font-size:16px;font-weight:700;color:#7ad8fd;letter-spacing:.5px;margin-bottom:6px;}
+  .card-sub{font-size:12px;color:#4a8aa8;margin-bottom:24px;line-height:1.5;}
+
+  label.fld{display:block;font-size:11px;color:#6ab4d4;text-transform:uppercase;
+    letter-spacing:.8px;margin-bottom:7px;font-weight:700;}
+  input.fld{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(90,174,239,.25);
+    border-radius:8px;color:#eaf6ff;font-size:16px;padding:13px 14px;font-family:inherit;
+    margin-bottom:16px;}
+  input.fld:focus{border-color:rgba(90,174,239,.6);outline:none;}
+  input.fld::placeholder{color:#2a5a78;}
+  input.fld.error{border-color:rgba(220,80,80,.7);}
+
+  .btn{width:100%;background:linear-gradient(90deg,#1a6a9a,#1e7db8);border:none;
+    border-radius:8px;color:#fff;font-size:14px;font-weight:700;letter-spacing:.5px;
+    padding:14px;cursor:pointer;text-transform:uppercase;font-family:inherit;}
+  .btn:active{opacity:.8;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .msg{font-size:12.5px;margin-top:14px;text-align:center;line-height:1.5;}
+  .msg.err{color:#e07070;}
+  .msg.ok{color:#6fc48f;}
+  .muted{color:#4a8aa8;}
+  .alt-link{display:block;text-align:center;margin-top:20px;font-size:12.5px;
+    color:#4a8aa8;text-decoration:none;}
+  .alt-link b{color:#7ad8fd;}
+
+  .section-title{padding:18px 20px 8px;font-size:11px;color:#4a7a96;
+    letter-spacing:1px;text-transform:uppercase;}
+  .empty{padding:32px 20px;color:#4a7a96;font-size:13px;text-align:center;line-height:1.6;}
+  @media (prefers-reduced-motion:no-preference){
+    .spin{animation:sp 1s linear infinite;display:inline-block;}
+    @keyframes sp{to{transform:rotate(360deg);}}
+  }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-logo">AVIOBOOK</div>
+    <div class="header-sub">{% block subtitle %}FLIGHT PLANNING{% endblock %}</div>
+  </div>
+  {% block headeraction %}{% endblock %}
+</div>
+{% block body %}{% endblock %}
+</body>
+</html>

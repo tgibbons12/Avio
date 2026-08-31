@@ -1,4 +1,9 @@
 flask>=3.0.0
+flask-login>=0.6.3
+flask-sqlalchemy>=3.1.0
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.9
+Werkzeug>=3.0.0
 pytz>=2024.1
 gunicorn>=21.0.0
 certifi>=2024.0.0

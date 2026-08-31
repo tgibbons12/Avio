@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block title %}{{ 'Create Account' if register else 'Sign In' }} — Aviobook{% endblock %}
+{% block subtitle %}{{ 'CREATE ACCOUNT' if register else 'SIGN IN' }}{% endblock %}
+{% block body %}
+<div class="wrap">
+  <form class="card" method="post" autocomplete="on">
+    <div class="card-title">{{ 'Create your account' if register else 'Sign in' }}</div>
+    <div class="card-sub">
+      {% if register %}
+        Your flights are private to your account and stay here between sessions.
+      {% else %}
+        Sign in to see your flight plans.
+      {% endif %}
+    </div>
+
+    <label class="fld" for="username">Username</label>
+    <input class="fld{% if error %} error{% endif %}" id="username" name="username" type="text"
+           value="{{ username or '' }}" autocomplete="username" autocapitalize="off"
+           autocorrect="off" spellcheck="false" placeholder="Your username" required>
+
+    <label class="fld" for="password">Password</label>
+    <input class="fld{% if error %} error{% endif %}" id="password" name="password" type="password"
+           autocomplete="{{ 'new-password' if register else 'current-password' }}"
+           placeholder="{{ 'At least 8 characters' if register else 'Your password' }}" required>
+
+    <button class="btn" type="submit">{{ 'Create account' if register else 'Sign in' }}</button>
+
+    {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+
+    {% if register %}
+      <a class="alt-link" href="{{ url_for('login') }}">Already have an account? <b>Sign in</b></a>
+    {% else %}
+      <a class="alt-link" href="{{ url_for('register') }}">No account yet? <b>Create one</b></a>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

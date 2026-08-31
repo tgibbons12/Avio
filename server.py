@@ -1,416 +1,298 @@
 #!/usr/bin/env python3
 """
-Aviobook Cloud Server — Railway deployment
+Aviobook Cloud Server — Railway deployment.
+
+Backend ported from MobileCCI. The change that matters: this app used to
+keep everything in one module-level `_store` dict, which meant a single
+shared archive readable by every visitor, wiped on every restart, and only
+coherent because gunicorn happened to run a single worker. State now lives
+in Postgres, scoped to a logged-in pilot.
 """
 
+import logging
 import os
 import sys
-import json
 import importlib.util
-from flask import Flask, request, jsonify, send_from_directory, Response, session
+from datetime import datetime, timedelta, timezone
 
-SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
+from flask import (Flask, request, jsonify, send_from_directory, Response,
+                   render_template, redirect, url_for, abort)
+from flask_login import (LoginManager, login_user, logout_user, login_required,
+                         current_user)
+
+from models import db, User, Flight
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+LOG = logging.getLogger("aviobook")
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(SCRIPT_DIR, "static")
 AVIOBOOK_PY = os.path.join(SCRIPT_DIR, "Aviobook.py")
 
-def _import_aviobook():
-    spec = importlib.util.spec_from_file_location("aviobook", AVIOBOOK_PY)
-    mod  = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-try:
-    _av = _import_aviobook()
-    print("  ✔  Aviobook.py loaded")
-except Exception as e:
-    print(f"  ✘  Could not load Aviobook.py: {e}")
-    sys.exit(1)
-
-_store = {
-    "archive": [],
-    "next_id": 1,
-    "last_error": None,
-    "ofp_cache": {},   # ofp_id -> html; looked up via per-user session cookie
-}
-
-STATIC_DIR = os.path.join(SCRIPT_DIR, "static")
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
-# Required for signed session cookies — set SECRET_KEY env var in Railway
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
+
+# A random fallback key silently signs every session out on restart, and
+# hands each gunicorn worker a different key. The old code accepted that
+# quietly; this refuses to start without a real one in production, because
+# the failure it causes looks like data loss rather than a config mistake.
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("DATABASE_URL"):
+        LOG.error("SECRET_KEY is not set. Set it in the Railway dashboard.")
+        raise SystemExit(1)
+    LOG.warning("SECRET_KEY not set — using an insecure dev default.")
+    _secret = "dev-insecure-key"
+app.secret_key = _secret
+
+# Railway hands out postgres:// but SQLAlchemy 2 wants postgresql://.
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = _db_url or f"sqlite:///{SCRIPT_DIR}/aviobook.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+db.init_app(app)
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
 
 
-def _build_launcher():
-    rows = ""
-    for e in _store["archive"]:
-        rows += (
-            "<a class='fl-row' href='/ofp/" + str(e["id"]) + "'>"
-            "<div class='fl-route'>" + e["orig"] + " → " + e["dest"] + " &nbsp; " + e["flight"] + "</div>"
-            "<div class='fl-meta'>" + e["date"] + " " + e["time"] + "Z</div>"
-            "<div class='fl-chev'>›</div>"
-            "</a>\n"
-        )
-    if not rows:
-        rows = "<div class='empty'>No flights yet — load an OFP to begin.</div>"
+@login_manager.user_loader
+def _load_user(uid):
+    return db.session.get(User, int(uid))
 
-    has_current = "true" if (session.get("ofp_id") in _store["ofp_cache"]) else "false"
 
-    return (
-        "<!DOCTYPE html>\n"
-        "<html lang='en'>\n"
-        "<head>\n"
-        "<meta charset='UTF-8'>\n"
-        "<meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover'>\n"
-        "<title>Aviobook</title>\n"
-        "<link rel='manifest' href='/manifest.json'>\n"
-        "<meta name='apple-mobile-web-app-capable' content='yes'>\n"
-        "<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent'>\n"
-        "<style>\n"
-        "*{box-sizing:border-box;margin:0;padding:0;}\n"
-        "html{background:#0d3550;overscroll-behavior-y:none;}\n"
-        "body{background:linear-gradient(160deg,#13405a 0%,#1a4a61 50%,#163d55 100%);\n"
-        "  min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;\n"
-        "  overscroll-behavior-y:none;color:#eaf6ff;}\n"
-        ".header{background:rgba(0,0,0,0.3);padding:18px 20px 14px;\n"
-        "  border-bottom:1px solid rgba(90,174,239,0.18);display:flex;align-items:center;gap:12px;}\n"
-        ".header-logo{font-size:20px;font-weight:700;color:#7ad8fd;letter-spacing:1px;}\n"
-        ".header-sub{font-size:11px;color:#4a7a96;letter-spacing:.5px;margin-top:2px;}\n"
-        ".signout-btn{margin-left:auto;background:transparent;border:1px solid rgba(90,174,239,0.3);\n"
-        "  border-radius:6px;color:#4a8aa8;font-size:11px;font-weight:700;letter-spacing:.5px;\n"
-        "  padding:7px 14px;cursor:pointer;text-transform:uppercase;font-family:inherit;}\n"
-        ".signout-btn:active{background:rgba(90,174,239,0.1);}\n"
-        ".login-wrap{display:flex;align-items:center;justify-content:center;\n"
-        "  padding:40px 20px;min-height:60vh;}\n"
-        ".login-card{background:linear-gradient(160deg,#1a4a61 0%,#21546D 60%,#1c4a60 100%);\n"
-        "  border:1px solid rgba(90,174,239,0.2);border-radius:12px;padding:32px 28px;\n"
-        "  width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.5);}\n"
-        ".login-title{font-size:16px;font-weight:700;color:#7ad8fd;letter-spacing:.5px;\n"
-        "  text-transform:uppercase;margin-bottom:6px;}\n"
-        ".login-sub{font-size:12px;color:#4a8aa8;margin-bottom:24px;}\n"
-        ".login-label{display:block;font-size:11px;color:#6ab4d4;text-transform:uppercase;\n"
-        "  letter-spacing:.8px;margin-bottom:6px;}\n"
-        ".login-input{width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(90,174,239,0.25);\n"
-        "  border-radius:6px;padding:12px 14px;color:#eaf6ff;font-size:15px;\n"
-        "  font-family:inherit;outline:none;transition:border-color .2s;}\n"
-        ".login-input:focus{border-color:rgba(90,174,239,0.6);}\n"
-        ".login-input.error{border-color:rgba(220,80,80,0.7);}\n"
-        ".login-input::placeholder{color:#2a5a78;}\n"
-        ".remember-row{display:flex;align-items:center;gap:10px;margin:16px 0 24px;cursor:pointer;}\n"
-        ".remember-toggle{width:40px;height:24px;background:rgba(0,0,0,0.4);border-radius:12px;\n"
-        "  position:relative;transition:background .2s;flex-shrink:0;border:1px solid rgba(90,174,239,0.2);}\n"
-        ".remember-toggle.on{background:rgba(74,205,130,0.35);border-color:rgba(74,205,130,0.5);}\n"
-        ".remember-toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;\n"
-        "  background:#4a7a96;border-radius:50%;transition:left .2s,background .2s;}\n"
-        ".remember-toggle.on::after{left:19px;background:#4cdf8a;}\n"
-        ".remember-label{font-size:13px;color:#6ab4d4;}\n"
-        ".login-btn{width:100%;background:linear-gradient(90deg,#1a6a9a,#1e7db8);border:none;\n"
-        "  border-radius:6px;color:#fff;font-size:14px;font-weight:700;letter-spacing:.5px;\n"
-        "  padding:14px;cursor:pointer;text-transform:uppercase;font-family:inherit;transition:opacity .2s;}\n"
-        ".login-btn:active{opacity:.8;}\n"
-        ".login-btn:disabled{opacity:.4;cursor:not-allowed;}\n"
-        ".login-error{color:#e07070;font-size:12px;margin-top:12px;text-align:center;display:none;}\n"
-        ".login-spinner{display:none;text-align:center;color:#4a8aa8;font-size:13px;margin-top:16px;}\n"
-        ".section-title{padding:18px 20px 8px;font-size:11px;color:#4a7a96;\n"
-        "  letter-spacing:1px;text-transform:uppercase;}\n"
-        ".fl-row{display:flex;align-items:center;padding:14px 20px;\n"
-        "  border-bottom:1px solid rgba(90,174,239,0.1);text-decoration:none;gap:10px;}\n"
-        ".fl-row:active{background:rgba(90,174,239,0.08);}\n"
-        ".fl-route{flex:1;font-size:15px;font-weight:600;color:#e8f6ff;letter-spacing:.2px;}\n"
-        ".fl-meta{font-size:11px;color:#4a7a96;white-space:nowrap;}\n"
-        ".fl-chev{font-size:22px;color:#2a6a8b;line-height:1;}\n"
-        ".empty{padding:32px 20px;color:#4a7a96;font-size:13px;text-align:center;}\n"
-        "</style>\n"
-        "</head>\n"
-        "<body>\n"
-        "<div class='header'>\n"
-        "  <div>\n"
-        "    <div class='header-logo'>AVIOBOOK</div>\n"
-        "    <div class='header-sub' id='header-user'>FLIGHT PLANNING</div>\n"
-        "  </div>\n"
-        "  <button class='signout-btn' id='signout-btn' style='display:none' onclick='signOut()'>Sign Out</button>\n"
-        "</div>\n"
-        "<div class='login-wrap' id='login-wrap'>\n"
-        "  <div class='login-card'>\n"
-        "    <div class='login-title'>Load Flight Plan</div>\n"
-        "    <div class='login-sub'>Enter your SimBrief username to load your latest OFP</div>\n"
-        "    <label class='login-label' for='sb-username'>SimBrief Username</label>\n"
-        "    <input class='login-input' id='sb-username' type='text'\n"
-        "           autocomplete='off' autocorrect='off' autocapitalize='off'\n"
-        "           spellcheck='false' placeholder='Enter your username'>\n"
-        "    <div class='remember-row' onclick='toggleRemember()'>\n"
-        "      <div class='remember-toggle' id='remember-toggle'></div>\n"
-        "      <span class='remember-label'>Remember me on this device</span>\n"
-        "    </div>\n"
-        "    <button class='login-btn' id='login-btn' onclick='doLoad()'>Load OFP</button>\n"
-        "    <div class='login-error' id='login-error'>Username not found or no active flight plan.</div>\n"
-        "    <div class='login-spinner' id='login-spinner'>Loading flight plan…</div>\n"
-        "  </div>\n"
-        "</div>\n"
-        "<div id='archive-section' style='display:none'>\n"
-        "  <div class='section-title'>Past Flights</div>\n"
-        + rows +
-        "</div>\n"
-        "<script>\n"
-        "var _remember = false;\n"
-        "var HAS_CURRENT = " + has_current + ";\n"
-        "\n"
-        "function init() {\n"
-        "  var saved = localStorage.getItem('av_username');\n"
-        "  if (saved) {\n"
-        "    document.getElementById('header-user').textContent = saved.toUpperCase();\n"
-        "    document.getElementById('signout-btn').style.display = '';\n"
-        "    _remember = true;\n"
-        "    document.getElementById('remember-toggle').classList.add('on');\n"
-        "  }\n"
-        "  var arc = document.getElementById('archive-section');\n"
-        "  if (arc && arc.querySelectorAll('.fl-row').length > 0) arc.style.display = 'block';\n"
-        "  if (saved && HAS_CURRENT) { window.location.href = '/ofp'; return; }\n"
-        "  if (saved) doLoad();\n"
-        "}\n"
-        "\n"
-        "function toggleRemember() {\n"
-        "  _remember = !_remember;\n"
-        "  document.getElementById('remember-toggle').classList.toggle('on', _remember);\n"
-        "}\n"
-        "\n"
-        "function signOut() {\n"
-        "  localStorage.removeItem('av_username');\n"
-        "  document.getElementById('sb-username').value = '';\n"
-        "  _remember = false;\n"
-        "  document.getElementById('remember-toggle').classList.remove('on');\n"
-        "  document.getElementById('signout-btn').style.display = 'none';\n"
-        "  document.getElementById('header-user').textContent = 'FLIGHT PLANNING';\n"
-        "  document.getElementById('login-wrap').style.display = 'flex';\n"
-        "  document.getElementById('archive-section').style.display = 'none';\n"
-        "}\n"
-        "\n"
-        "function doLoad() {\n"
-        "  var username = document.getElementById('sb-username').value.trim();\n"
-        "  if (!username) {\n"
-        "    var inp = document.getElementById('sb-username');\n"
-        "    inp.classList.add('error');\n"
-        "    setTimeout(function(){ inp.classList.remove('error'); }, 2000);\n"
-        "    return;\n"
-        "  }\n"
-        "  if (_remember) { localStorage.setItem('av_username', username); }\n"
-        "  else { localStorage.removeItem('av_username'); }\n"
-        "  var btn = document.getElementById('login-btn');\n"
-        "  var spinner = document.getElementById('login-spinner');\n"
-        "  var errEl = document.getElementById('login-error');\n"
-        "  btn.disabled = true;\n"
-        "  spinner.style.display = 'block';\n"
-        "  errEl.style.display = 'none';\n"
-        "  fetch('/generate', {\n"
-        "    method: 'POST',\n"
-        "    headers: {'Content-Type': 'application/json'},\n"
-        "    body: JSON.stringify({ username: username })\n"
-        "  })\n"
-        "  .then(function(r) { if (!r.ok) throw new Error('Failed'); return r.json(); })\n"
-        "  .then(function() { window.location.href = '/ofp'; })\n"
-        "  .catch(function() {\n"
-        "    btn.disabled = false;\n"
-        "    spinner.style.display = 'none';\n"
-        "    errEl.style.display = 'block';\n"
-        "  });\n"
-        "}\n"
-        "\n"
-        "document.getElementById('sb-username').addEventListener('keydown', function(e) {\n"
-        "  if (e.key === 'Enter') doLoad();\n"
-        "});\n"
-        "\n"
-        "init();\n"
-        "</script>\n"
-        "</body>\n"
-        "</html>\n"
+# --- Aviobook.py is imported lazily -----------------------------------
+# It used to be imported at module scope with sys.exit(1) on failure, which
+# under gunicorn kills the worker before it can serve anything — Railway
+# then retries and gives up, leaving the service down with the reason only
+# in build logs. Now a broken renderer fails one request, loudly, and the
+# rest of the app (including /health) stays up.
+_av = None
+
+
+def _aviobook():
+    global _av
+    if _av is None:
+        spec = importlib.util.spec_from_file_location("aviobook", AVIOBOOK_PY)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _av = mod
+        LOG.info("Aviobook.py loaded")
+    return _av
+
+
+def _ensure_columns():
+    """Bare-bones migration for columns added after first deploy —
+    create_all() only creates missing tables, it never alters an existing
+    one. Same approach MobileCCI uses; Alembic would replace it if the
+    schema ever starts moving faster than this."""
+    from sqlalchemy import inspect, text as sa_text
+    inspector = inspect(db.engine)
+    if "users" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("users")}
+    for col, ddl in (("simbrief_user", "VARCHAR(64)"),
+                     ("current_flight_id", "INTEGER"),
+                     ("last_seen", "TIMESTAMP")):
+        if col not in existing:
+            with db.engine.begin() as conn:
+                conn.execute(sa_text(f"ALTER TABLE users ADD COLUMN {col} {ddl}"))
+            LOG.info("Migrated: added users.%s", col)
+
+
+with app.app_context():
+    db.create_all()
+    _ensure_columns()
+
+
+_LAST_SEEN_THROTTLE = timedelta(minutes=5)
+
+
+@app.before_request
+def _touch_last_seen():
+    """Wrapped so a write failure can never sink the request it rode in
+    on — 'last active' only needs to be roughly right."""
+    try:
+        if not current_user.is_authenticated:
+            return
+        now = datetime.now(timezone.utc)
+        seen = current_user.last_seen
+        if seen is not None and seen.tzinfo is None:
+            seen = seen.replace(tzinfo=timezone.utc)
+        if seen is None or (now - seen) > _LAST_SEEN_THROTTLE:
+            current_user.last_seen = now
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+# --- auth --------------------------------------------------------------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    error = username = None
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user, remember=True)
+            return redirect(url_for("index"))
+        # Deliberately does not say which half was wrong.
+        error = "That username and password don't match."
+    return render_template("auth.html", register=False, error=error, username=username)
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    error = username = None
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        if len(username) < 3:
+            error = "Username must be at least 3 characters."
+        elif len(password) < 8:
+            error = "Password must be at least 8 characters."
+        elif User.query.filter_by(username=username).first():
+            error = "That username is taken."
+        else:
+            user = User(username=username)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            login_user(user, remember=True)
+            return redirect(url_for("index"))
+    return render_template("auth.html", register=True, error=error, username=username)
+
+
+@app.route("/logout")
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
+
+# --- flights -----------------------------------------------------------
+
+def _home_button(html, href="/"):
+    btn = (
+        "<div style=\"position:fixed;top:calc(20px + env(safe-area-inset-top));right:20px;"
+        "z-index:10000;\"><a href=\"" + href + "\" style=\"background:#1a6a9a;color:#fff;"
+        "border-radius:6px;padding:10px 16px;font-weight:700;font-size:12px;letter-spacing:.5px;"
+        "text-transform:uppercase;font-family:-apple-system,sans-serif;text-decoration:none;"
+        "display:inline-block;\">&larr; Home</a></div>"
     )
+    return html.replace("</body>", btn + "</body>") if "</body>" in html else html + btn
 
 
 @app.route("/")
+@login_required
 def index():
-    return Response(_build_launcher(), mimetype="text/html")
+    flights = (Flight.query.filter_by(user_id=current_user.id)
+               .order_by(Flight.created_at.desc()).all())
+    return render_template("launcher.html", flights=flights)
 
 
 @app.route("/ofp")
+@login_required
 def serve_ofp():
-    ofp_id   = session.get("ofp_id")
-    ofp_html = _store["ofp_cache"].get(ofp_id) if ofp_id else None
-    if not ofp_html:
-        return Response(
-            "<html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
-            "<style>body{background:#0d1f30;color:#4da8da;font-family:sans-serif;"
-            "display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}</style>"
-            "</head><body><script>window.location.replace('/');</script>"
-            "<p>Redirecting…</p></body></html>",
-            mimetype="text/html"
-        )
-    # Inject a home button into the OFP HTML
-    home_button = (
-        "<div style='position:fixed;top:20px;right:20px;z-index:10000;'>"
-        "<button onclick=\"if(confirm('Return to home?')) { fetch('/clear-ofp', {method:'POST'}).then(() => window.location.href='/'); }\" "
-        "style='background:#1a6a9a;color:#fff;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;"
-        "font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;font-family:inherit;'>"
-        "← Home</button></div>"
-    )
-    # Insert button before closing body tag
-    if "</body>" in ofp_html:
-        ofp_html = ofp_html.replace("</body>", home_button + "</body>")
-    return Response(ofp_html, mimetype="text/html")
+    fid = current_user.current_flight_id
+    if fid:
+        return redirect(url_for("serve_flight", flight_id=fid))
+    return redirect(url_for("index"))
 
 
 @app.route("/ofp/<int:flight_id>")
-def serve_archived_ofp(flight_id):
-    for entry in _store["archive"]:
-        if entry["id"] == flight_id:
-            ofp_html = entry["html"]
-            home_button = (
-                "<div style='position:fixed;top:20px;right:20px;z-index:10000;'>"
-                "<button onclick=\"window.location.href='/';\" "
-                "style='background:#1a6a9a;color:#fff;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;"
-                "font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;font-family:inherit;'>"
-                "← Home</button></div>"
-            )
-            if "</body>" in ofp_html:
-                ofp_html = ofp_html.replace("</body>", home_button + "</body>")
-            return Response(ofp_html, mimetype="text/html")
-    return "Flight not found", 404
+@app.route("/flight/<int:flight_id>")
+@login_required
+def serve_flight(flight_id):
+    # Scoped to the owner. The old route looped a global archive with no
+    # ownership check at all, so /ofp/1, /ofp/2 ... walked every pilot's
+    # flight plans.
+    f = Flight.query.filter_by(id=flight_id, user_id=current_user.id).first()
+    if not f:
+        abort(404)
+    return Response(_home_button(f.html), mimetype="text/html")
 
 
-@app.route("/clear-ofp", methods=["POST"])
-def clear_ofp():
-    """Clear this user's OFP from their session and the cache"""
-    ofp_id = session.pop("ofp_id", None)
-    if ofp_id and ofp_id in _store["ofp_cache"]:
-        del _store["ofp_cache"][ofp_id]
+@app.route("/flight/<int:flight_id>", methods=["DELETE"])
+@login_required
+def delete_flight(flight_id):
+    f = Flight.query.filter_by(id=flight_id, user_id=current_user.id).first()
+    if not f:
+        abort(404)
+    if current_user.current_flight_id == f.id:
+        current_user.current_flight_id = None
+    db.session.delete(f)
+    db.session.commit()
     return jsonify({"ok": True})
 
 
 @app.route("/generate", methods=["POST"])
+@login_required
 def generate():
+    req = request.get_json(silent=True) or {}
+    username = (req.get("username") or "").strip()
+    if not username:
+        return jsonify({"error": "SimBrief username required."}), 400
+
     try:
-        req        = request.get_json(force=True)
-        username   = (req.get("username") or "").strip()
-        pilot_name = (req.get("pilot_name") or "").strip()
+        av = _aviobook()
+        xml_data = av.fetch_xml_from_api(username)
+        data = av.parse_simbrief_xml(xml_data)
+        html = av.generate_aviobook_html(data, pilot_name=current_user.username,
+                                         release_folder=None)
+    except Exception:
+        # The traceback goes to the server log, never to the client. The
+        # old code returned it in the response body and also served the
+        # last one from an unauthenticated /debug route.
+        LOG.exception("OFP generation failed for SimBrief user %r", username)
+        return jsonify({"error": "Could not load that flight plan. Check the "
+                                 "SimBrief username and that it has a current OFP."}), 502
 
-        if not username:
-            return "username required", 400
+    g = data.get("general", {}) or {}
+    a = data.get("airports", {}) or {}
+    orig = (a.get("origin", {}) or {}).get("icao") or "----"
+    dest = (a.get("destination", {}) or {}).get("icao") or "----"
+    flt = ((g.get("icao_airline") or "") + (g.get("flight_number") or "")).strip() or "FLT"
 
-        print(f"  ✈  Fetching OFP for: {username}")
-        xml_data = _av.fetch_xml_from_api(username)
-        data     = _av.parse_simbrief_xml(xml_data)
-
-        if pilot_name and not data.get("ofp", {}).get("name"):
-            if "ofp" not in data:
-                data["ofp"] = {}
-            data["ofp"]["name"] = pilot_name
-
-        html = _av.generate_aviobook_html(data, pilot_name=pilot_name, release_folder=None)
-
-        from datetime import datetime, timezone
-        g    = data.get("general", {})
-        a    = data.get("airports", {})
-        orig = a.get("origin", {}).get("icao", "???")
-        dest = a.get("destination", {}).get("icao", "???")
-        flt  = (g.get("icao_airline", "") + g.get("flight_number", "")).strip() or "FLT"
-
-        try:
-            ts = int(data.get("times", {}).get("sched_off_ts") or 0)
-            dt = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else datetime.now(timezone.utc)
-        except Exception:
-            dt = datetime.now(timezone.utc)
-
-        entry = {
-            "id":     _store["next_id"],
-            "orig":   orig,
-            "dest":   dest,
-            "flight": flt,
-            "date":   dt.strftime("%d %b %Y"),
-            "time":   dt.strftime("%H:%M"),
-            "html":   html,
-        }
-        existing = next((e for e in _store["archive"]
-                         if e["orig"] == orig and e["dest"] == dest
-                         and e["flight"] == flt and e["time"] == entry["time"]), None)
-        if not existing:
-            _store["archive"].insert(0, entry)
-            _store["next_id"] += 1
-
-        # Store HTML in per-user cache and remember which entry belongs to this session
-        _store["ofp_cache"][entry["id"]] = html
-        session["ofp_id"] = entry["id"]
-
-        print(f"  ✔  OFP generated ({len(html):,} bytes) — {orig}→{dest} {flt}")
-        return jsonify({"ok": True, "ofp_url": "/ofp"})
-
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"  ✘  {tb}")
-        _store["last_error"] = tb
-        return jsonify({"error": str(e), "traceback": tb}), 500
-
-
-@app.route("/match-pdfs", methods=["POST"])
-def match_pdfs():
-    """
-    Client sends:  { filenames: [...], orig: "KLAX", dest: "YSSY", flight: "AAL1" }
-    Returns:       { matches: [ {name, score, doc_type}, ... ] }  sorted best-first
-    """
     try:
-        req        = request.get_json(force=True)
-        filenames  = req.get("filenames", [])
-        orig_icao  = (req.get("orig") or "").strip().upper()
-        dest_icao  = (req.get("dest") or "").strip().upper()
-        flight_num = (req.get("flight") or "").strip().upper().replace(" ", "")
+        ts = int((data.get("times", {}) or {}).get("sched_off_ts") or 0)
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else datetime.now(timezone.utc)
+    except (TypeError, ValueError):
+        dt = datetime.now(timezone.utc)
 
-        def score_and_type(name):
-            stem = name.upper().replace(".PDF", "")
-            doc_type = ""
-            for suffix in ("-RLS", "-WB", "-OFP", "-RELEASE", "-WEIGHTBALANCE"):
-                if stem.endswith(suffix):
-                    doc_type = suffix.lstrip("-")
-                    stem = stem[: -len(suffix)]
-                    break
-            core = stem.replace("-", "").replace("_", "").replace(" ", "")
-            pair = (orig_icao + dest_icao)
-            s = 0
-            if pair and pair in core:               s += 100
-            if flight_num and flight_num in core:   s += 60
-            elif orig_icao and orig_icao in core:   s += 20
-            if dest_icao and dest_icao in core:     s += 20
-            if doc_type in ("RLS", "WB"):           s += 10
-            return s, doc_type
+    sched_date, sched_time = dt.strftime("%d %b %Y"), dt.strftime("%H:%M")
 
-        results = []
-        for fname in filenames:
-            if not fname.upper().endswith(".PDF"):
-                continue
-            s, doc_type = score_and_type(fname)
-            if s > 0:
-                results.append({"name": fname, "score": s, "doc_type": doc_type})
+    # Re-loading the same OFP refreshes it in place rather than stacking
+    # duplicates, matching the old dedupe but scoped to this pilot.
+    f = Flight.query.filter_by(user_id=current_user.id, orig=orig, dest=dest,
+                               flight_no=flt, sched_time=sched_time).first()
+    if f:
+        f.html = html
+    else:
+        f = Flight(user_id=current_user.id, orig=orig, dest=dest, flight_no=flt,
+                   sched_date=sched_date, sched_time=sched_time, html=html)
+        db.session.add(f)
+        db.session.flush()
 
-        results.sort(key=lambda x: x["score"], reverse=True)
-        return jsonify({"matches": results})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    current_user.current_flight_id = f.id
+    if username != current_user.simbrief_user:
+        current_user.simbrief_user = username
+    db.session.commit()
 
-
-
-@app.route("/debug")
-def debug():
-    err = _store.get("last_error") or "No errors recorded yet."
-    return Response(
-        "<pre style='font-family:monospace;padding:20px;background:#111;color:#f88;white-space:pre-wrap'>"
-        + err + "</pre>", mimetype="text/html"
-    )
-
-
-@app.route("/archive")
-def archive():
-    slim = [{k: v for k, v in e.items() if k != "html"} for e in _store["archive"]]
-    return jsonify(slim)
+    LOG.info("OFP generated for %s: %s->%s %s (%d bytes)",
+             current_user.username, orig, dest, flt, len(html))
+    return jsonify({"ok": True, "ofp_url": url_for("serve_flight", flight_id=f.id)})
 
 
 @app.route("/health")
 def health():
-    return "ok", 200
+    return jsonify({"status": "ok", "version": os.environ.get("RAILWAY_GIT_COMMIT_SHA", "dev")[:7]})
 
 
 @app.route("/manifest.json")
@@ -420,5 +302,5 @@ def manifest():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8742))
-    print(f"\n  Aviobook Cloud Server running on port {port}\n")
+    LOG.info("Aviobook Cloud Server on port %d", port)
     app.run(host="0.0.0.0", port=port, debug=False)

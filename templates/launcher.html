@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% block title %}Aviobook{% endblock %}
+{% block subtitle %}{{ current_user.username|upper }}{% endblock %}
+{% block headeraction %}
+  <a class="btn-ghost" href="{{ url_for('logout') }}">Sign Out</a>
+{% endblock %}
+
+{% block head %}
+<style>
+  .loadbar{padding:16px 20px 4px;}
+  .loadbar .row{display:flex;gap:10px;align-items:stretch;}
+  .loadbar input.fld{margin-bottom:0;flex:1;}
+  .loadbar .btn{width:auto;padding:13px 20px;white-space:nowrap;}
+  .hint{font-size:11px;color:#4a7a96;padding:10px 20px 0;letter-spacing:.3px;}
+
+  .fl-row{display:flex;align-items:center;padding:14px 20px;gap:10px;
+    border-bottom:1px solid rgba(90,174,239,.1);text-decoration:none;color:inherit;}
+  .fl-row:active{background:rgba(90,174,239,.08);}
+  .fl-main{flex:1;min-width:0;}
+  .fl-route{font-size:15px;font-weight:600;color:#e8f6ff;letter-spacing:.2px;}
+  .fl-meta{font-size:11px;color:#4a7a96;margin-top:3px;}
+  .fl-current{font-size:10px;color:#0d3550;background:#7ad8fd;border-radius:4px;
+    padding:2px 6px;font-weight:700;letter-spacing:.5px;margin-left:8px;}
+  .fl-del{background:transparent;border:none;color:#3b6f8c;font-size:20px;
+    padding:6px 4px;cursor:pointer;font-family:inherit;line-height:1;}
+  .fl-del:active{color:#e07070;}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="loadbar">
+  <label class="fld" for="sb">SimBrief username</label>
+  <div class="row">
+    <input class="fld" id="sb" type="text" value="{{ current_user.simbrief_user or '' }}"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           placeholder="Your SimBrief username">
+    <button class="btn" id="go" onclick="loadOfp()">Load</button>
+  </div>
+  <div class="hint" id="hint">Saved to your account — you only need to enter it once.</div>
+</div>
+
+<div class="section-title">Your flights</div>
+{% if flights %}
+  {% for f in flights %}
+  <div class="fl-row">
+    <a class="fl-main" href="{{ url_for('serve_flight', flight_id=f.id) }}"
+       style="text-decoration:none;color:inherit;">
+      <div class="fl-route">
+        {{ f.orig }} &rarr; {{ f.dest }} &nbsp; {{ f.flight_no }}
+        {% if f.id == current_user.current_flight_id %}<span class="fl-current">CURRENT</span>{% endif %}
+      </div>
+      <div class="fl-meta">{{ f.sched_date }} {{ f.sched_time }}Z</div>
+    </a>
+    <button class="fl-del" title="Delete this flight"
+            onclick="delFlight({{ f.id }}, this)">&times;</button>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty">
+    No flights yet.<br>
+    Enter your SimBrief username above and tap Load to pull your latest OFP.
+  </div>
+{% endif %}
+
+<script>
+function setHint(text, cls) {
+  var h = document.getElementById('hint');
+  h.textContent = text;
+  h.className = 'hint' + (cls ? ' ' + cls : '');
+  h.style.color = cls === 'err' ? '#e07070' : '#4a7a96';
+}
+
+function loadOfp() {
+  var el = document.getElementById('sb');
+  var username = el.value.trim();
+  if (!username) {
+    el.classList.add('error');
+    setTimeout(function () { el.classList.remove('error'); }, 2000);
+    setHint('Enter your SimBrief username first.', 'err');
+    return;
+  }
+  var btn = document.getElementById('go');
+  btn.disabled = true;
+  setHint('Fetching your latest OFP from SimBrief…');
+
+  fetch('/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: username})
+  })
+    .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+    .then(function (res) {
+      if (!res.ok) throw new Error(res.body.error || 'Could not load that flight plan.');
+      window.location.href = res.body.ofp_url;
+    })
+    .catch(function (e) {
+      btn.disabled = false;
+      setHint(e.message, 'err');
+    });
+}
+
+function delFlight(id, btn) {
+  if (!confirm('Delete this flight?')) return;
+  btn.disabled = true;
+  fetch('/flight/' + id, {method: 'DELETE'})
+    .then(function (r) {
+      if (!r.ok) throw new Error();
+      btn.closest('.fl-row').remove();
+    })
+    .catch(function () {
+      btn.disabled = false;
+      setHint('Could not delete that flight.', 'err');
+    });
+}
+
+document.getElementById('sb').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') loadOfp();
+});
+</script>
+{% endblock %}
